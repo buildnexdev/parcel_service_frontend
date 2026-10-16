@@ -149,6 +149,20 @@ a {
   color: #0f172a;
 }
 
+.btn-white {
+  background: #ffffff;
+  color: #000000 !important;
+  border-color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.btn-white:hover {
+  background: #f1f5f9;
+  color: #000000 !important;
+  border-color: #f1f5f9;
+  transform: translateY(-1px);
+}
+
 .btn-danger {
   background: var(--danger);
   color: #fff;

@@ -165,7 +165,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
 
             <div className="flex items-center gap-3">
               <a href="#branches" className="btn btn-accent btn-lg">Explore 12 Branches</a>
-              <a href="#contact" className="btn btn-outline btn-lg" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.3)' }}>Book Cargo</a>
+              <a href="#contact" className="btn btn-white btn-lg" style={{ color: '#000000', fontWeight: 700 }}>Book Cargo</a>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginTop: '36px', paddingTop: '28px', borderTop: '1px solid rgba(255,255,255,0.12)' }}>
