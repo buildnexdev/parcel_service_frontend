@@ -4,7 +4,7 @@ import { useToast } from '../../context/ToastContext';
 import SuccessModal from '../Common/SuccessModal';
 import { 
   Package, Search, Plus, CreditCard, Eye, Printer, 
-  CheckCircle2, Clock, Truck, X, PlusCircle, AlertCircle, Phone
+  CheckCircle2, Clock, Truck, X, PlusCircle, AlertCircle, Phone, Edit, Trash2
 } from 'lucide-react';
 
 const OrdersView = ({ defaultOpenNew = false }) => {
@@ -66,6 +66,33 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     payment_mode: 'TO_PAY',
     payment_method: 'CASH',
     amount_paid: 0,
+    remarks: ''
+  });
+
+  // Edit Order Modal State
+  const [isEditOrderOpen, setIsEditOrderOpen] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState(null);
+  const [editForm, setEditForm] = useState({
+    lr_number: '',
+    booking_date: '',
+    sender_name: '',
+    sender_phone: '',
+    sender_address: '',
+    receiver_name: '',
+    receiver_phone: '',
+    receiver_address: '',
+    from_station: 'Karaikal',
+    to_station: 'Pondicherry',
+    pieces: 1,
+    weight_kg: 0,
+    description: 'Goods',
+    payment_mode: 'TO_PAY',
+    payment_status: 'UNPAID',
+    payment_method: 'CASH',
+    freight_amount: 100,
+    other_charges: 0,
+    delivery_status: 'BOOKED',
+    driver_id: '',
     remarks: ''
   });
 
@@ -272,6 +299,81 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       }
     } catch (err) {
       showToast(err.message || 'Failed to create order', 'error');
+    }
+  };
+
+  // Open Edit Order Modal
+  const handleOpenEditOrder = (order) => {
+    setEditingOrderId(order.id);
+    setEditForm({
+      lr_number: order.lr_number || '',
+      booking_date: order.booking_date ? new Date(order.booking_date).toISOString().split('T')[0] : '',
+      sender_name: order.sender_name || '',
+      sender_phone: order.sender_phone || '',
+      sender_address: order.sender_address || '',
+      receiver_name: order.receiver_name || '',
+      receiver_phone: order.receiver_phone || '',
+      receiver_address: order.receiver_address || '',
+      from_station: order.from_station || 'Karaikal',
+      to_station: order.to_station || 'Pondicherry',
+      pieces: order.pieces || 1,
+      weight_kg: order.weight_kg || 0,
+      description: order.description || 'Goods',
+      payment_mode: order.payment_mode || 'TO_PAY',
+      payment_status: order.payment_status || 'UNPAID',
+      payment_method: order.payment_method || 'CASH',
+      freight_amount: order.freight_amount !== undefined ? order.freight_amount : 0,
+      other_charges: order.other_charges !== undefined ? order.other_charges : 0,
+      delivery_status: order.delivery_status || 'BOOKED',
+      driver_id: order.driver_id || '',
+      remarks: order.remarks || ''
+    });
+    setIsEditOrderOpen(true);
+  };
+
+  // Save Edited Order
+  const handleUpdateOrder = async (e) => {
+    e.preventDefault();
+    if (!editingOrderId) return;
+    if (editForm.sender_phone && !/^\d{10}$/.test(editForm.sender_phone)) {
+      showToast('Sender phone number must be exactly 10 digits.', 'error');
+      return;
+    }
+    if (editForm.receiver_phone && !/^\d{10}$/.test(editForm.receiver_phone)) {
+      showToast('Receiver phone number must be exactly 10 digits.', 'error');
+      return;
+    }
+
+    try {
+      const res = await api.updateOrder(editingOrderId, {
+        ...editForm,
+        freight_amount: parseFloat(editForm.freight_amount) || 0,
+        other_charges: parseFloat(editForm.other_charges) || 0,
+        pieces: parseInt(editForm.pieces, 10) || 1,
+        weight_kg: parseFloat(editForm.weight_kg) || 0,
+        driver_id: editForm.driver_id ? parseInt(editForm.driver_id, 10) : null
+      });
+      showToast(res.message || 'Order updated successfully!', 'success');
+      setIsEditOrderOpen(false);
+      setEditingOrderId(null);
+      loadOrders();
+    } catch (err) {
+      showToast(err.message || 'Failed to update order', 'error');
+    }
+  };
+
+  // Delete Order with Confirmation
+  const handleDeleteOrder = async (orderId, lrNumber) => {
+    if (window.confirm(`Are you sure you want to permanently delete order LR #${lrNumber}? This cannot be undone.`)) {
+      try {
+        await api.deleteOrder(orderId);
+        showToast(`Order #${lrNumber} deleted successfully.`, 'success');
+        setIsEditOrderOpen(false);
+        setEditingOrderId(null);
+        loadOrders();
+      } catch (err) {
+        showToast(err.message || 'Failed to delete order', 'error');
+      }
     }
   };
 
@@ -592,12 +694,23 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                         </div>
 
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          {/* EDIT ORDER BUTTON */}
+                          <button
+                            className="btn btn-outline btn-xs"
+                            onClick={() => handleOpenEditOrder(o)}
+                            title="Edit Order Details"
+                            style={{ flex: 1, padding: '4px 6px', fontSize: '0.75rem', gap: '3px', color: '#0284c7', borderColor: '#bae6fd', background: '#f0f9ff' }}
+                          >
+                            <Edit size={12} />
+                            <span>Edit</span>
+                          </button>
+
                           {/* Tracking Timeline Drawer */}
                           <button
                             className="btn btn-outline btn-xs"
                             onClick={() => handleOpenTracking(o)}
                             title="View tracking history"
-                            style={{ flex: 1, padding: '4px 8px', fontSize: '0.75rem', gap: '4px' }}
+                            style={{ flex: 1, padding: '4px 6px', fontSize: '0.75rem', gap: '3px' }}
                           >
                             <Eye size={12} />
                             <span>Track</span>
@@ -608,10 +721,10 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                             className="btn btn-outline btn-xs"
                             onClick={() => handlePrintLR(o)}
                             title="Print Waybill / LR"
-                            style={{ flex: 1, padding: '4px 8px', fontSize: '0.75rem', gap: '4px' }}
+                            style={{ flex: 1, padding: '4px 6px', fontSize: '0.75rem', gap: '3px' }}
                           >
                             <Printer size={12} />
-                            <span>Print LR</span>
+                            <span>Print</span>
                           </button>
                         </div>
                       </div>
@@ -1030,6 +1143,317 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </button>
                   <button type="submit" className="btn btn-accent">
                     Save & Create Order
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================= */}
+      {/* EDIT ORDER MODAL */}
+      {/* ============================================================= */}
+      {isEditOrderOpen && (
+        <div className="modal-overlay" onClick={() => setIsEditOrderOpen(false)}>
+          <div className="modal-box" style={{ maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Edit size={20} color="#0284c7" />
+                <h3>Edit Order #{editForm.lr_number}</h3>
+              </div>
+              <button className="modal-close" onClick={() => setIsEditOrderOpen(false)}>
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <form onSubmit={handleUpdateOrder}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div className="form-group">
+                    <label className="form-label">LR / Waybill Number *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. 18002"
+                      value={editForm.lr_number}
+                      onChange={(e) => setEditForm({ ...editForm, lr_number: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Booking Date *</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={editForm.booking_date}
+                      onChange={(e) => setEditForm({ ...editForm, booking_date: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Sender Name *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. PRIME TEXTILES"
+                      value={editForm.sender_name}
+                      onChange={(e) => setEditForm({ ...editForm, sender_name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Sender Phone (10 Digits)</label>
+                    <input
+                      type="tel"
+                      className="form-control"
+                      placeholder="e.g. 9840123456"
+                      value={editForm.sender_phone}
+                      maxLength={10}
+                      onChange={(e) => setEditForm({ ...editForm, sender_phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Sender Address</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Sender pickup address (optional)"
+                    value={editForm.sender_address}
+                    onChange={(e) => setEditForm({ ...editForm, sender_address: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Receiver Name *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. KRISHNA SILKS"
+                      value={editForm.receiver_name}
+                      onChange={(e) => setEditForm({ ...editForm, receiver_name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Receiver Phone (10 Digits)</label>
+                    <input
+                      type="tel"
+                      className="form-control"
+                      placeholder="e.g. 9443187211"
+                      value={editForm.receiver_phone}
+                      maxLength={10}
+                      onChange={(e) => setEditForm({ ...editForm, receiver_phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Receiver Address</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Receiver delivery address (optional)"
+                    value={editForm.receiver_address}
+                    onChange={(e) => setEditForm({ ...editForm, receiver_address: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div className="form-group">
+                    <label className="form-label">From Station *</label>
+                    <select
+                      className="form-control"
+                      value={editForm.from_station}
+                      onChange={(e) => setEditForm({ ...editForm, from_station: e.target.value })}
+                    >
+                      {branches.map(b => <option key={b.id} value={b.name}>{b.name} ({b.code})</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">To Station *</label>
+                    <select
+                      className="form-control"
+                      value={editForm.to_station}
+                      onChange={(e) => setEditForm({ ...editForm, to_station: e.target.value })}
+                    >
+                      {branches.map(b => <option key={b.id} value={b.name}>{b.name} ({b.code})</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '14px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Pieces (PCS)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="form-control"
+                      value={editForm.pieces}
+                      onChange={(e) => setEditForm({ ...editForm, pieces: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Weight (KG)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="form-control"
+                      value={editForm.weight_kg}
+                      onChange={(e) => setEditForm({ ...editForm, weight_kg: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Description of Goods</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={editForm.description}
+                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Payment Mode</label>
+                    <select
+                      className="form-control"
+                      value={editForm.payment_mode}
+                      onChange={(e) => setEditForm({ ...editForm, payment_mode: e.target.value })}
+                    >
+                      <option value="TO_PAY">TO PAY (Collect on delivery)</option>
+                      <option value="PAID">PAID (Prepaid)</option>
+                      <option value="CREDIT">CREDIT</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Payment Status</label>
+                    <select
+                      className="form-control"
+                      value={editForm.payment_status}
+                      onChange={(e) => setEditForm({ ...editForm, payment_status: e.target.value })}
+                    >
+                      <option value="UNPAID">UNPAID</option>
+                      <option value="PAID">PAID</option>
+                      <option value="PARTIALLY_PAID">PARTIALLY PAID</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Payment Method</label>
+                    <select
+                      className="form-control"
+                      value={editForm.payment_method}
+                      onChange={(e) => setEditForm({ ...editForm, payment_method: e.target.value })}
+                    >
+                      <option value="CASH">CASH</option>
+                      <option value="UPI">UPI / GPay</option>
+                      <option value="BANK_TRANSFER">Bank Transfer</option>
+                      <option value="CREDIT">Credit</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Freight Amount (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="form-control"
+                      value={editForm.freight_amount}
+                      onChange={(e) => setEditForm({ ...editForm, freight_amount: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Other Charges (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="form-control"
+                      value={editForm.other_charges}
+                      onChange={(e) => setEditForm({ ...editForm, other_charges: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Total Freight</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={`₹${((parseFloat(editForm.freight_amount) || 0) + (parseFloat(editForm.other_charges) || 0)).toFixed(2)}`}
+                      disabled
+                      style={{ fontWeight: 'bold', background: '#f8fafc' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Delivery Status</label>
+                    <select
+                      className="form-control"
+                      value={editForm.delivery_status}
+                      onChange={(e) => setEditForm({ ...editForm, delivery_status: e.target.value })}
+                    >
+                      <option value="BOOKED">Booked</option>
+                      <option value="IN_TRANSIT">In Transit</option>
+                      <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
+                      <option value="DELIVERED">Delivered</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Assign Driver / Vehicle</label>
+                    <select
+                      className="form-control"
+                      value={editForm.driver_id}
+                      onChange={(e) => setEditForm({ ...editForm, driver_id: e.target.value })}
+                    >
+                      <option value="">-- Unassigned --</option>
+                      {drivers.map(d => (
+                        <option key={d.id} value={d.id}>{d.name} ({d.vehicle_no})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Remarks</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. Urgent textile delivery / Handle with care"
+                    value={editForm.remarks}
+                    onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex justify-between items-center" style={{ marginTop: '24px' }}>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button type="button" className="btn btn-outline" onClick={() => setIsEditOrderOpen(false)}>
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      onClick={() => handleDeleteOrder(editingOrderId, editForm.lr_number)}
+                    >
+                      <Trash2 size={14} />
+                      <span>Delete Order</span>
+                    </button>
+                  </div>
+                  <button type="submit" className="btn btn-accent" style={{ background: '#0284c7', borderColor: '#0284c7' }}>
+                    Save Changes
                   </button>
                 </div>
               </form>

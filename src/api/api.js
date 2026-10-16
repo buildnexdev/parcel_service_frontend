@@ -73,6 +73,7 @@ export const api = {
   getOrders: (params = {}) => apiClient.get('/orders', { params }),
   getOrderById: (id) => apiClient.get(`/orders/${id}`),
   createOrder: (data) => apiClient.post('/orders', data),
+  updateOrder: (id, data) => apiClient.put(`/orders/${id}`, data),
   updatePayment: (id, data) => apiClient.patch(`/orders/${id}/payment`, data),
   updateDeliveryStatus: (id, data) => apiClient.patch(`/orders/${id}/status`, data),
   addCheckpoint: (id, data) => apiClient.post(`/orders/${id}/checkpoint`, data),
