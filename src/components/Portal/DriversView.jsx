@@ -335,11 +335,11 @@ const DriversView = () => {
               <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: 20 }}>
                 This action cannot be undone. Drivers with active in-progress orders cannot be removed.
               </p>
-              <div className="flex justify-between items-center">
-                <button className="btn btn-outline" onClick={() => setDriverToDelete(null)}>
+              <div className="flex justify-between items-center" style={{ gap: '12px', flexWrap: 'wrap' }}>
+                <button className="btn btn-outline" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setDriverToDelete(null)}>
                   Cancel
                 </button>
-                <button className="btn btn-danger" onClick={handleConfirmDelete} disabled={deleting}>
+                <button className="btn btn-danger" style={{ flex: 1, justifyContent: 'center' }} onClick={handleConfirmDelete} disabled={deleting}>
                   {deleting ? 'Removing...' : 'Yes, Remove Driver'}
                 </button>
               </div>

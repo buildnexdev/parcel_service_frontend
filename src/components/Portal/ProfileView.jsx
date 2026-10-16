@@ -71,9 +71,9 @@ const ProfileView = () => {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '20px' }}>
       {/* Profile Details Form */}
-      <div style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', padding: '28px' }}>
+      <div style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', padding: 'clamp(18px, 4vw, 28px)' }}>
         <div className="flex items-center gap-2" style={{ marginBottom: '20px' }}>
           <User size={20} color="var(--primary)" />
           <h3 style={{ fontSize: '1.25rem', color: 'var(--primary-dark)' }}>Staff Profile Details</h3>
@@ -156,7 +156,7 @@ const ProfileView = () => {
       </div>
 
       {/* Change Password Form */}
-      <div style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', padding: '28px' }}>
+      <div style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', padding: 'clamp(18px, 4vw, 28px)' }}>
         <div className="flex items-center gap-2" style={{ marginBottom: '20px' }}>
           <Lock size={20} color="var(--secondary)" />
           <h3 style={{ fontSize: '1.25rem', color: 'var(--primary-dark)' }}>Change Password</h3>

@@ -193,13 +193,13 @@ const ReportsView = () => {
   return (
     <div>
       {/* Filter Card */}
-      <div style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', padding: '24px', marginBottom: '24px' }}>
+      <div style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', padding: 'clamp(16px, 3vw, 24px)', marginBottom: '24px' }}>
         <div className="flex items-center gap-2" style={{ marginBottom: '16px' }}>
           <Filter size={18} color="var(--primary)" />
           <h3 style={{ fontSize: '1.15rem', color: 'var(--primary-dark)' }}>Daily Reports & Multi-Filters</h3>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '14px', marginBottom: '18px' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Single Date</label>
             <input

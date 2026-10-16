@@ -4,11 +4,12 @@ import { useToast } from '../context/ToastContext';
 import SuccessModal from './Common/SuccessModal';
 import { 
   Search, Phone, MapPin, ShieldCheck, Truck, CheckCircle2, 
-  Clock, Package, FileText, ArrowRight, ExternalLink, MessageSquare 
+  Clock, Package, FileText, ArrowRight, ExternalLink, MessageSquare, Menu, X 
 } from 'lucide-react';
 
 const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
   const { showToast } = useToast();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [trackQuery, setTrackQuery] = useState('');
   const [trackResult, setTrackResult] = useState(null);
   const [trackLoading, setTrackLoading] = useState(false);
@@ -97,22 +98,22 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
   return (
     <div className="website-root">
       {/* Top Hotline Bar */}
-      <div style={{ background: '#0a192f', color: '#94a3b8', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ background: '#0a192f', color: '#94a3b8', fontSize: '0.825rem', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <div className="container flex justify-between items-center" style={{ flexWrap: 'wrap', gap: '8px' }}>
-          <div className="flex items-center gap-4">
-            <span>📍 <strong>Head Office:</strong> Karaikal</span>
-            <span>🏢 <strong>Branch Office:</strong> Pondicherry</span>
-            <span>📋 <strong>GSTIN:</strong> 34BJCPM0785J1Z3</span>
+          <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
+            <span>📍 <strong>HQ:</strong> Karaikal</span>
+            <span className="desktop-only">🏢 <strong>Branch:</strong> Pondicherry</span>
+            <span className="desktop-only">📋 <strong>GSTIN:</strong> 34BJCPM0785J1Z3</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
             <a href="tel:9442485296" style={{ color: '#cbd5e1' }}>📞 94424 85296</a>
-            <a href="tel:9360427527" style={{ color: '#cbd5e1' }}>93604 27527</a>
+            <a href="tel:9360427527" style={{ color: '#cbd5e1' }} className="desktop-only">93604 27527</a>
             {isAuthenticated ? (
-              <button onClick={onGoToPortal} className="btn btn-sm btn-accent">
+              <button onClick={onGoToPortal} className="btn btn-xs btn-accent" style={{ padding: '4px 10px' }}>
                 Open Portal ➔
               </button>
             ) : (
-              <button onClick={onOpenLogin} className="btn btn-sm btn-outline" style={{ color: '#f59e0b', borderColor: '#f59e0b' }}>
+              <button onClick={onOpenLogin} className="btn btn-xs btn-outline" style={{ color: '#f59e0b', borderColor: '#f59e0b', padding: '4px 10px' }}>
                 Staff Login
               </button>
             )}
@@ -121,21 +122,22 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
       </div>
 
       {/* Main Navbar */}
-      <header style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border-color)', padding: '14px 0' }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border-color)', padding: '12px 0' }}>
         <div className="container flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div style={{ width: 44, height: 44, background: 'linear-gradient(135deg, var(--primary), var(--accent))', color: '#fff', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.35rem' }}>
+            <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, var(--primary), var(--accent))', color: '#fff', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.2rem', flexShrink: 0 }}>
               ES
             </div>
             <div>
-              <h2 style={{ fontSize: '1.25rem', color: 'var(--primary-dark)', lineHeight: 1.1 }}>ES TRANSPORTERS</h2>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--secondary-hover)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              <h2 style={{ fontSize: 'clamp(1.05rem, 3vw, 1.25rem)', color: 'var(--primary-dark)', lineHeight: 1.1 }}>ES TRANSPORTERS</h2>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--secondary-hover)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 IGR QUICK PARCEL SERVICE
               </span>
             </div>
           </div>
 
-          <nav style={{ display: 'flex', gap: '24px' }}>
+          {/* Desktop Nav */}
+          <nav className="desktop-only" style={{ gap: '24px' }}>
             <a href="#home" style={{ color: 'var(--text-main)', fontWeight: 600 }}>Home</a>
             <a href="#track" style={{ color: 'var(--text-main)', fontWeight: 600 }}>Track Parcel</a>
             <a href="#branches" style={{ color: 'var(--text-main)', fontWeight: 600 }}>12 Branches</a>
@@ -143,32 +145,107 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
             <a href="#contact" style={{ color: 'var(--text-main)', fontWeight: 600 }}>Contact</a>
           </nav>
 
-          <button onClick={isAuthenticated ? onGoToPortal : onOpenLogin} className="btn btn-accent">
+          <button onClick={isAuthenticated ? onGoToPortal : onOpenLogin} className="btn btn-accent desktop-only">
             {isAuthenticated ? 'Go to Management Portal' : 'Staff Portal Login'}
           </button>
+
+          {/* Mobile Menu Toggle Button */}
+          <button
+            type="button"
+            className="mobile-only btn btn-outline btn-sm"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            style={{ padding: '8px 10px' }}
+            aria-label="Toggle Navigation Menu"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
+
+        {/* Mobile Slide-Down Menu */}
+        {mobileMenuOpen && (
+          <div 
+            style={{ 
+              background: '#ffffff', 
+              borderTop: '1px solid var(--border-color)', 
+              boxShadow: 'var(--shadow-lg)', 
+              padding: '16px 20px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '12px',
+              animation: 'fadeIn 0.2s ease'
+            }}
+          >
+            <a 
+              href="#home" 
+              onClick={() => setMobileMenuOpen(false)}
+              style={{ color: 'var(--primary-dark)', fontWeight: 700, padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}
+            >
+              🏠 Home
+            </a>
+            <a 
+              href="#track" 
+              onClick={() => setMobileMenuOpen(false)}
+              style={{ color: 'var(--primary-dark)', fontWeight: 700, padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}
+            >
+              📦 Track Parcel
+            </a>
+            <a 
+              href="#branches" 
+              onClick={() => setMobileMenuOpen(false)}
+              style={{ color: 'var(--primary-dark)', fontWeight: 700, padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}
+            >
+              🏢 12 Network Hubs
+            </a>
+            <a 
+              href="#credentials" 
+              onClick={() => setMobileMenuOpen(false)}
+              style={{ color: 'var(--primary-dark)', fontWeight: 700, padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}
+            >
+              📜 Verified GST Details
+            </a>
+            <a 
+              href="#contact" 
+              onClick={() => setMobileMenuOpen(false)}
+              style={{ color: 'var(--primary-dark)', fontWeight: 700, padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}
+            >
+              📞 Direct Contact & Booking
+            </a>
+
+            <button 
+              onClick={() => {
+                setMobileMenuOpen(false);
+                if (isAuthenticated) onGoToPortal();
+                else onOpenLogin();
+              }} 
+              className="btn btn-accent"
+              style={{ width: '100%', marginTop: '6px' }}
+            >
+              {isAuthenticated ? 'Go to Management Portal' : 'Staff Portal Login'}
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}
-      <section id="home" style={{ position: 'relative', background: 'linear-gradient(135deg, #0a192f 0%, #0f3460 50%, #1a365d 100%)', color: '#fff', padding: '70px 0 90px' }}>
-        <div className="container" style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '48px', alignItems: 'center' }}>
+      <section id="home" style={{ position: 'relative', background: 'linear-gradient(135deg, #0a192f 0%, #0f3460 50%, #1a365d 100%)', color: '#fff', padding: '50px 0 70px' }}>
+        <div className="container hero-grid">
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(243,156,18,0.15)', border: '1px solid rgba(243,156,18,0.35)', color: '#fbd38d', padding: '6px 14px', borderRadius: 'var(--radius-full)', fontSize: '0.85rem', fontWeight: 600, marginBottom: '18px' }}>
               ⚡ Daily Regular Scheduled Cargo Service
             </div>
-            <h1 style={{ fontSize: '3rem', lineHeight: 1.15, color: '#fff', marginBottom: '20px' }}>
+            <h1 className="hero-title">
               Fast, Reliable Parcel Service Across <span style={{ color: '#f59e0b' }}>Karaikal, Pondicherry & Delta</span>
             </h1>
-            <p style={{ fontSize: '1.1rem', color: '#cbd5e1', marginBottom: '30px', maxWidth: '560px' }}>
+            <p style={{ fontSize: '1.05rem', color: '#cbd5e1', marginBottom: '26px', maxWidth: '560px', lineHeight: 1.6 }}>
               Scheduled daily truck runs connecting Pondicherry, Cuddalore, Chidambaram, Karaikal, Nagapattinam, Thiruvarur, and 12 strategic network hubs with same-day & next-day delivery.
             </p>
 
-            <div className="flex items-center gap-3">
-              <a href="#branches" className="btn btn-accent btn-lg">Explore 12 Branches</a>
-              <a href="#contact" className="btn btn-white btn-lg" style={{ color: '#000000', fontWeight: 700 }}>Book Cargo</a>
+            <div className="hero-buttons">
+              <a href="#branches" className="btn btn-accent btn-lg" style={{ textAlign: 'center' }}>Explore 12 Branches</a>
+              <a href="#contact" className="btn btn-white btn-lg" style={{ color: '#000000', fontWeight: 700, textAlign: 'center' }}>Book Cargo</a>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginTop: '36px', paddingTop: '28px', borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+            <div className="hero-stats-grid">
               <div>
                 <h3 style={{ fontSize: '1.75rem', color: '#fbd38d', marginBottom: 4 }}>12 Hubs</h3>
                 <p style={{ fontSize: '0.825rem', color: '#94a3b8' }}>Direct Network Stations</p>
@@ -185,23 +262,23 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
           </div>
 
           {/* Quick Tracking Card */}
-          <div id="track" style={{ background: '#ffffff', borderRadius: 'var(--radius-xl)', padding: '32px', boxShadow: 'var(--shadow-xl)', color: 'var(--text-main)' }}>
-            <div style={{ marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.45rem', color: 'var(--primary-dark)' }}>Track Your Order / Parcel</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Enter your Waybill / LR number or phone number for live status.</p>
+          <div id="track" style={{ background: '#ffffff', borderRadius: 'var(--radius-xl)', padding: '24px', boxShadow: 'var(--shadow-xl)', color: 'var(--text-main)' }}>
+            <div style={{ marginBottom: '18px' }}>
+              <h3 style={{ fontSize: '1.35rem', color: 'var(--primary-dark)' }}>Track Your Order / Parcel</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Enter your Waybill / LR number or phone number for live status.</p>
             </div>
 
             <form onSubmit={handleTrackSubmit}>
-              <div style={{ display: 'flex', background: 'var(--bg-surface-alt)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '6px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: 'var(--bg-surface-alt)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '6px' }}>
                 <input
                   type="text"
                   placeholder="Enter LR Number (e.g. 17963, 18001)"
                   value={trackQuery}
                   onChange={(e) => setTrackQuery(e.target.value)}
-                  style={{ flex: 1, border: 'none', background: 'transparent', padding: '10px 14px', fontSize: '1rem', outline: 'none' }}
+                  style={{ flex: 1, minWidth: '180px', border: 'none', background: 'transparent', padding: '10px 12px', fontSize: '0.95rem', outline: 'none' }}
                   required
                 />
-                <button type="submit" className="btn btn-primary" disabled={trackLoading}>
+                <button type="submit" className="btn btn-primary" style={{ padding: '10px 20px' }} disabled={trackLoading}>
                   {trackLoading ? 'Tracking...' : 'Track'}
                 </button>
               </div>
@@ -215,7 +292,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
 
             {trackResult && trackResult.order && (
               <div style={{ marginTop: '20px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: 6 }}>
                   <div>
                     <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Waybill / LR</span>
                     <h4 style={{ fontSize: '1.3rem', color: 'var(--primary-dark)' }}>#{trackResult.order.lr_number}</h4>
@@ -225,7 +302,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.85rem', marginBottom: '14px' }}>
+                <div className="form-grid-2" style={{ gap: '8px', fontSize: '0.85rem', marginBottom: '14px' }}>
                   <div><strong>Route:</strong> {trackResult.order.from_station} ➔ {trackResult.order.to_station}</div>
                   <div><strong>Pieces:</strong> {trackResult.order.pieces} Pcs ({trackResult.order.weight_kg} Kg)</div>
                   <div><strong>Date:</strong> {new Date(trackResult.order.booking_date).toLocaleDateString()}</div>
@@ -262,7 +339,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '20px' }}>
             {branches.map(b => (
               <div
                 key={b.id}
@@ -294,21 +371,21 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
       </section>
 
       {/* Verified Credentials & GST */}
-      <section id="credentials" style={{ padding: '80px 0', background: 'var(--bg-body)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+      <section id="credentials" style={{ padding: '70px 0', background: 'var(--bg-body)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
         <div className="container">
-          <div style={{ textAlign: 'center', maxWidth: 650, margin: '0 auto 50px' }}>
+          <div style={{ textAlign: 'center', maxWidth: 650, margin: '0 auto 40px' }}>
             <span style={{ background: 'var(--warning-bg)', color: '#b45309', fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', padding: '4px 12px', borderRadius: 'var(--radius-full)' }}>
               Verified Business
             </span>
-            <h2 style={{ fontSize: '2.3rem', color: 'var(--primary-dark)', margin: '12px 0' }}>Government Registered Transporter</h2>
+            <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.3rem)', color: 'var(--primary-dark)', margin: '12px 0' }}>Government Registered Transporter</h2>
             <p style={{ color: 'var(--text-muted)' }}>Operating under the Goods and Services Tax Act with transparent order tracking and accountability.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-            <div style={{ background: '#fff', border: '2px solid var(--secondary)', borderRadius: 'var(--radius-lg)', padding: '30px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '24px' }}>
+            <div style={{ background: '#fff', border: '2px solid var(--secondary)', borderRadius: 'var(--radius-lg)', padding: '24px' }}>
               <div style={{ width: 50, height: 50, borderRadius: 'var(--radius-md)', background: 'rgba(243,156,18,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', marginBottom: '16px' }}>🏛️</div>
               <h3 style={{ fontSize: '1.35rem', marginBottom: '12px', color: 'var(--primary-dark)' }}>GST Registration Details</h3>
-              <ul style={{ listStyle: 'none', fontSize: '0.95rem', lineHeight: '1.9', color: 'var(--text-main)' }}>
+              <ul style={{ listStyle: 'none', fontSize: '0.925rem', lineHeight: '1.9', color: 'var(--text-main)' }}>
                 <li><strong>Trade Name:</strong> ES TRANSPORTERS</li>
                 <li><strong>Service Name:</strong> IGR QUICK PARCEL SERVICE</li>
                 <li><strong>Proprietor:</strong> MATHAVAN</li>
@@ -324,26 +401,26 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
               </div>
             </div>
 
-            <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '30px' }}>
+            <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '24px' }}>
               <div style={{ width: 50, height: 50, borderRadius: 'var(--radius-md)', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', marginBottom: '16px' }}>📍</div>
               <h3 style={{ fontSize: '1.35rem', marginBottom: '12px', color: 'var(--primary-dark)' }}>Head Office (Karaikal)</h3>
-              <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
+              <p style={{ fontSize: '0.925rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
                 <strong>Operational Hub:</strong> No. 18, Sastha Nagar, Near Radio Station, Karaikal - 609 602<br />
                 <strong>Registered Office:</strong> 32, Church Street, Karaikal - 609 602
               </p>
-              <div style={{ fontSize: '0.95rem', lineHeight: 1.8 }}>
+              <div style={{ fontSize: '0.925rem', lineHeight: 1.8 }}>
                 <div>📞 <strong>Phone:</strong> <a href="tel:9360427527">93604 27527</a> / <a href="tel:9655566060">96555 66060</a></div>
                 <div>⏰ <strong>Working Hours:</strong> Mon - Sat: 8:00 AM - 9:30 PM</div>
               </div>
             </div>
 
-            <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '30px' }}>
+            <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '24px' }}>
               <div style={{ width: 50, height: 50, borderRadius: 'var(--radius-md)', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', marginBottom: '16px' }}>🏢</div>
               <h3 style={{ fontSize: '1.35rem', marginBottom: '12px', color: 'var(--primary-dark)' }}>Branch Office (Pondicherry)</h3>
-              <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
+              <p style={{ fontSize: '0.925rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
                 <strong>Hub Address:</strong> No. 9, Throwpathi Amman Kovil Street, Arumathapuram, Puducherry - 605 110
               </p>
-              <div style={{ fontSize: '0.95rem', lineHeight: 1.8 }}>
+              <div style={{ fontSize: '0.925rem', lineHeight: 1.8 }}>
                 <div>📞 <strong>Phone:</strong> <a href="tel:9442485296">94424 85296</a> / <a href="tel:9360427527">93604 27527</a></div>
                 <div>🚚 <strong>Regular Scheduled Dispatch:</strong> Daily Morning & Evening</div>
               </div>
@@ -352,39 +429,38 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
         </div>
       </section>
 
-
       {/* Contact & Inquiry Section */}
-      <section id="contact" style={{ padding: '80px 0', background: 'var(--bg-body)' }}>
-        <div className="container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'center' }}>
+      <section id="contact" style={{ padding: '70px 0', background: 'var(--bg-body)' }}>
+        <div className="container contact-grid">
           <div>
             <span style={{ background: 'var(--warning-bg)', color: '#b45309', fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', padding: '4px 12px', borderRadius: 'var(--radius-full)' }}>
               Direct Contact
             </span>
-            <h2 style={{ fontSize: '2.3rem', color: 'var(--primary-dark)', margin: '12px 0' }}>Book Your Parcel Today</h2>
+            <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.3rem)', color: 'var(--primary-dark)', margin: '12px 0' }}>Book Your Parcel Today</h2>
             <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
               Contact our stations directly or submit a booking request online. We offer counter drop-off and door delivery service across all 12 stations.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
               <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: '#fef3c7', color: '#b45309', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: '#fef3c7', color: '#b45309', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Phone size={20} />
                 </div>
                 <div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700 }}>DIRECT HOTLINES</div>
-                  <div style={{ fontWeight: 700, color: 'var(--primary-dark)' }}>
+                  <div style={{ fontWeight: 700, color: 'var(--primary-dark)', wordBreak: 'break-word' }}>
                     <a href="tel:9442485296">94424 85296</a> / <a href="tel:9360427527">93604 27527</a> / <a href="tel:9655566060">96555 66060</a>
                   </div>
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: '#dcfce7', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: '#dcfce7', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <MessageSquare size={20} />
                 </div>
                 <div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700 }}>WHATSAPP QUICK CHAT</div>
-                  <a href="https://wa.me/919360427527" target="_blank" rel="noreferrer" style={{ fontWeight: 700, color: '#15803d' }}>
+                  <a href="https://wa.me/919360427527" target="_blank" rel="noreferrer" style={{ fontWeight: 700, color: '#15803d', wordBreak: 'break-word' }}>
                     Click to Message on WhatsApp (+91 93604 27527)
                   </a>
                 </div>
@@ -392,7 +468,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
             </div>
           </div>
 
-          <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xl)', padding: '32px', boxShadow: 'var(--shadow-md)' }}>
+          <div style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xl)', padding: '24px', boxShadow: 'var(--shadow-md)' }}>
             <h3 style={{ fontSize: '1.35rem', marginBottom: '16px', color: 'var(--primary-dark)' }}>Send a Booking Request</h3>
             <form onSubmit={handleInquirySubmit}>
               <div className="form-group">
@@ -420,7 +496,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="form-grid-2">
                 <div className="form-group">
                   <label className="form-label">From Station</label>
                   <select
@@ -464,8 +540,8 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
       </section>
 
       {/* Footer */}
-      <footer style={{ background: '#0a192f', color: '#cbd5e1', padding: '60px 0 30px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <div className="container" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1.2fr', gap: '40px', marginBottom: '40px' }}>
+      <footer style={{ background: '#0a192f', color: '#cbd5e1', padding: '50px 0 24px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="container footer-grid">
           <div>
             <div className="flex items-center gap-3" style={{ marginBottom: '16px' }}>
               <div style={{ width: 38, height: 38, background: 'linear-gradient(135deg, var(--primary), var(--accent))', color: '#fff', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
@@ -476,14 +552,14 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
                 <span style={{ color: '#fbd38d', fontSize: '0.75rem', fontWeight: 700 }}>IGR QUICK PARCEL SERVICE</span>
               </div>
             </div>
-            <p style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
               Premier parcel and freight logistics service connecting Pondicherry, Karaikal, and Delta region with daily scheduled dispatches.
             </p>
           </div>
 
           <div>
-            <h4 style={{ color: '#fff', marginBottom: '16px' }}>Quick Links</h4>
-            <ul style={{ listStyle: 'none', fontSize: '0.9rem', lineHeight: '2' }}>
+            <h4 style={{ color: '#fff', marginBottom: '14px' }}>Quick Links</h4>
+            <ul style={{ listStyle: 'none', fontSize: '0.875rem', lineHeight: '2' }}>
               <li><a href="#track" style={{ color: '#94a3b8' }}>Live Parcel Tracking</a></li>
               <li><a href="#branches" style={{ color: '#94a3b8' }}>12 Stations Network</a></li>
               <li><a href="#credentials" style={{ color: '#94a3b8' }}>GST Verification</a></li>
@@ -492,21 +568,21 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
           </div>
 
           <div>
-            <h4 style={{ color: '#fff', marginBottom: '16px' }}>Network Corridor</h4>
+            <h4 style={{ color: '#fff', marginBottom: '14px' }}>Network Corridor</h4>
             <p style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.8' }}>
               Pondicherry • Cuddalore • Chidambaram • Parangipettai • Sirkali • Mayiladuthurai • Karaikal • Nagore • Nagapattinam • Thiruvarur • Thiruthuraipoondi • Vedaranyam
             </p>
           </div>
 
           <div>
-            <h4 style={{ color: '#fff', marginBottom: '16px' }}>Station Inquiries</h4>
+            <h4 style={{ color: '#fff', marginBottom: '14px' }}>Station Inquiries</h4>
             <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}><strong>Karaikal:</strong> 32, Church St / Sastha Nagar</p>
             <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: 4 }}><strong>Pondicherry:</strong> No. 9, Throwpathi Amman Kovil St</p>
-            <p style={{ fontSize: '0.9rem', color: '#fbd38d', marginTop: 8, fontWeight: 'bold' }}>📞 94424 85296 / 93604 27527</p>
+            <p style={{ fontSize: '0.875rem', color: '#fbd38d', marginTop: 8, fontWeight: 'bold' }}>📞 94424 85296 / 93604 27527</p>
           </div>
         </div>
 
-        <div className="container" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '24px', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
+        <div className="container" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '20px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', fontSize: '0.825rem', color: '#64748b' }}>
           <div>© 2026 ES TRANSPORTERS (IGR Quick Parcel Service). All rights reserved. GSTIN: 34BJCPM0785J1Z3</div>
           <div>Proprietor: MATHAVAN</div>
         </div>

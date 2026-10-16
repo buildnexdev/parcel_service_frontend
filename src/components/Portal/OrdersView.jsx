@@ -486,7 +486,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       <div className="table-card">
         {/* Controls Header */}
         <div className="table-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '260px', maxWidth: '420px', position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 'min(100%, 240px)', position: 'relative' }}>
             <Search size={16} style={{ position: 'absolute', left: '12px', color: '#94a3b8' }} />
             <input
               type="text"
@@ -498,10 +498,10 @@ const OrdersView = ({ defaultOpenNew = false }) => {
             />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', width: 'auto' }}>
             <select
               className="form-control"
-              style={{ width: 'auto', minWidth: '160px' }}
+              style={{ width: 'auto', flex: 1, minWidth: '150px' }}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -515,7 +515,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
 
             <select
               className="form-control"
-              style={{ width: 'auto', minWidth: '140px' }}
+              style={{ width: 'auto', flex: 1, minWidth: '130px' }}
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value)}
             >
@@ -524,7 +524,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
               <option value="UNPAID">UNPAID (To-Pay / Pending)</option>
             </select>
 
-            <button className="btn btn-accent" onClick={() => setIsNewOrderOpen(true)}>
+            <button className="btn btn-accent" onClick={() => setIsNewOrderOpen(true)} style={{ whiteSpace: 'nowrap' }}>
               <Plus size={18} />
               <span>Add Order</span>
             </button>
@@ -771,7 +771,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </select>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">Payment Mode</label>
                     <select
@@ -909,7 +909,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
 
             <div className="modal-body">
               <form onSubmit={handleCreateOrder}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">LR / Waybill Number *</label>
                     <input
@@ -933,7 +933,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">Sender Name *</label>
                     <input
@@ -958,7 +958,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">Receiver Name *</label>
                     <input
@@ -983,7 +983,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">From Station *</label>
                     <select
@@ -1006,7 +1006,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '14px' }}>
+                <div className="form-grid-custom-1-1-2">
                   <div className="form-group">
                     <label className="form-label">Pieces (PCS)</label>
                     <input
@@ -1039,7 +1039,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-3">
                   <div className="form-group">
                     <label className="form-label">Payment Mode</label>
                     <select
@@ -1078,7 +1078,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-3">
                   <div className="form-group">
                     <label className="form-label">Freight Amount (₹)</label>
                     <input
@@ -1169,7 +1169,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
 
             <div className="modal-body">
               <form onSubmit={handleUpdateOrder}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">LR / Waybill Number *</label>
                     <input
@@ -1193,7 +1193,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">Sender Name *</label>
                     <input
@@ -1229,7 +1229,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">Receiver Name *</label>
                     <input
@@ -1265,7 +1265,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">From Station *</label>
                     <select
@@ -1288,7 +1288,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '14px' }}>
+                <div className="form-grid-custom-1-1-2">
                   <div className="form-group">
                     <label className="form-label">Pieces (PCS)</label>
                     <input
@@ -1321,7 +1321,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-3">
                   <div className="form-group">
                     <label className="form-label">Payment Mode</label>
                     <select
@@ -1361,7 +1361,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-3">
                   <div className="form-group">
                     <label className="form-label">Freight Amount (₹)</label>
                     <input
@@ -1395,7 +1395,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">Delivery Status</label>
                     <select

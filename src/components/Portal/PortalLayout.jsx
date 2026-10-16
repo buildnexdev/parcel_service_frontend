@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { LayoutDashboard, Package, Truck, FileBarChart, User, LogOut, Globe, Plus, AlertTriangle, X } from 'lucide-react';
+import { LayoutDashboard, Package, Truck, FileBarChart, User, LogOut, Globe, Plus, AlertTriangle, X, Menu } from 'lucide-react';
 
 const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenNewOrder }) => {
   const { user, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -22,26 +23,51 @@ const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenN
 
   return (
     <div className="portal-container">
+      {/* Mobile Drawer Backdrop */}
+      {mobileNavOpen && (
+        <div 
+          className="portal-backdrop" 
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="portal-sidebar">
-        <div style={{ padding: '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 38, height: 38, background: 'linear-gradient(135deg, var(--primary), var(--accent))', color: '#fff', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
-            ES
+      <aside className={`portal-sidebar ${mobileNavOpen ? 'open' : ''}`}>
+        <div style={{ padding: '20px 18px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 38, height: 38, background: 'linear-gradient(135deg, var(--primary), var(--accent))', color: '#fff', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
+              ES
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontFamily: 'Outfit', color: '#fff', fontSize: '1.05rem', lineHeight: 1.1 }}>ES TRANSPORTERS</div>
+              <div style={{ fontSize: '0.7rem', color: '#fbd38d', fontWeight: 700 }}>STAFF PORTAL</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontWeight: 800, fontFamily: 'Outfit', color: '#fff', fontSize: '1.05rem', lineHeight: 1.1 }}>ES TRANSPORTERS</div>
-            <div style={{ fontSize: '0.7rem', color: '#fbd38d', fontWeight: 700 }}>STAFF PORTAL</div>
-          </div>
+
+          {/* Close drawer button on mobile */}
+          <button
+            type="button"
+            className="mobile-only btn btn-xs"
+            onClick={() => setMobileNavOpen(false)}
+            style={{ color: '#94a3b8', background: 'rgba(255,255,255,0.08)', border: 'none', padding: '6px', cursor: 'pointer' }}
+            aria-label="Close navigation"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        <nav style={{ padding: '20px 12px', flex: 1 }}>
+        <nav style={{ padding: '20px 12px', flex: 1, overflowY: 'auto' }}>
           {navItems.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
               <div
                 key={item.id}
-                onClick={() => onTabChange(item.id)}
+                onClick={() => {
+                  onTabChange(item.id);
+                  setMobileNavOpen(false);
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -67,7 +93,10 @@ const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenN
 
         <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)' }}>
           <button
-            onClick={onOpenWebsite}
+            onClick={() => {
+              setMobileNavOpen(false);
+              onOpenWebsite();
+            }}
             className="btn btn-outline btn-sm"
             style={{ width: '100%', marginBottom: 12, color: '#cbd5e1', background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.12)', justifyContent: 'center' }}
           >
@@ -96,24 +125,33 @@ const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenN
       <main className="portal-main">
         {/* Top Header */}
         <header className="portal-header">
-          <div className="flex items-center gap-3">
-            <h2 style={{ fontSize: '1.35rem', color: 'var(--text-main)', fontWeight: 800 }}>
-              {activeTab === 'dashboard' ? 'Dashboard Overview' : (activeTab === 'orders' ? 'Orders & Tracking' : (activeTab === 'drivers' ? 'Assigned Drivers' : (activeTab === 'reports' ? 'Daily Reports & Run Sheets' : 'Staff Profile')))}
+          <div className="flex items-center gap-2" style={{ flex: 1, minWidth: 0 }}>
+            {/* Mobile Hamburger Button */}
+            <button
+              type="button"
+              className="mobile-only btn btn-outline btn-sm"
+              onClick={() => setMobileNavOpen(true)}
+              style={{ padding: '6px 10px', marginRight: 4 }}
+              aria-label="Toggle menu"
+            >
+              <Menu size={18} />
+            </button>
+
+            <h2 style={{ fontSize: 'clamp(1.05rem, 2.5vw, 1.35rem)', color: 'var(--text-main)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {activeTab === 'dashboard' ? 'Dashboard Overview' : (activeTab === 'orders' ? 'Orders & Tracking' : (activeTab === 'drivers' ? 'Assigned Drivers' : (activeTab === 'reports' ? 'Daily Reports' : 'Staff Profile')))}
             </h2>
           </div>
 
-          <div className="flex items-center gap-4">
-            <button className="btn btn-accent btn-sm" onClick={onOpenNewOrder}>
+          <div className="flex items-center gap-2">
+            <button className="btn btn-accent btn-sm" onClick={onOpenNewOrder} style={{ padding: '6px 12px' }}>
               <Plus size={16} />
               <span>New Order</span>
             </button>
 
-            <div className="flex items-center gap-2" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 14px', borderRadius: 'var(--radius-md)' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 0 2px #d1fae5' }}></div>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{user?.branch || 'Karaikal'} Station</span>
-              <span style={{ color: '#cbd5e1', fontSize: '0.8rem' }}>|</span>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>{user?.name || user?.username}</span>
-              <span className="badge badge-active" style={{ fontSize: '0.65rem', padding: '2px 7px' }}>{user?.role?.toUpperCase() || 'ADMIN'}</span>
+            <div className="flex items-center gap-2" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', flexShrink: 0, boxShadow: '0 0 0 2px #d1fae5' }}></div>
+              <span className="desktop-only" style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{user?.branch || 'Karaikal'}</span>
+              <span className="badge badge-active" style={{ fontSize: '0.65rem', padding: '2px 6px' }}>{user?.role?.toUpperCase() || 'ADMIN'}</span>
             </div>
           </div>
         </header>
