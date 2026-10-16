@@ -126,28 +126,42 @@ const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenN
 
       {/* In-UI Logout Confirmation Modal */}
       {showLogoutConfirm && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '420px', textAlign: 'center' }}>
-            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+        <div className="modal-overlay" onClick={() => setShowLogoutConfirm(false)}>
+          <div 
+            className="modal-box" 
+            style={{ 
+              maxWidth: '420px', 
+              textAlign: 'center', 
+              background: '#1e293b', 
+              borderRadius: '16px', 
+              padding: '28px 24px', 
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', 
+              border: '1px solid #334155' 
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <AlertTriangle size={30} />
             </div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', marginBottom: 8 }}>
               Confirm Staff Sign Out
             </h3>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.9rem', color: '#ffffff', marginBottom: 24, lineHeight: 1.5 }}>
               Are you sure you want to end your current session? You will be redirected to the public website.
             </p>
             <div className="flex justify-between items-center" style={{ gap: 12 }}>
               <button 
-                className="btn btn-outline" 
-                style={{ flex: 1, justifyContent: 'center' }}
+                type="button"
+                className="btn" 
+                style={{ flex: 1, justifyContent: 'center', background: '#334155', color: '#ffffff', border: '1px solid #475569' }}
                 onClick={() => setShowLogoutConfirm(false)}
               >
                 Stay Logged In
               </button>
               <button 
+                type="button"
                 className="btn btn-danger" 
-                style={{ flex: 1, justifyContent: 'center' }}
+                style={{ flex: 1, justifyContent: 'center', background: '#dc2626', color: '#ffffff' }}
                 onClick={handleConfirmLogout}
               >
                 Sign Out
