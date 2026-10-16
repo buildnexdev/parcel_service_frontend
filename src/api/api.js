@@ -1,8 +1,22 @@
 import axios from 'axios';
 
-// Create Axios client with base URL pointing to /api (proxied in Vite or direct)
+// Determine API Base URL:
+// 1. If VITE_API_URL is configured (e.g. in Vercel environment variables), use it.
+// 2. In production (Vercel deployment), point to live Render backend: https://igr-parcel-service.onrender.com/api
+// 3. In local development, use /api (proxied by Vite to localhost:5000)
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    const customUrl = import.meta.env.VITE_API_URL.replace(/\/+$/, '');
+    return customUrl.endsWith('/api') ? customUrl : `${customUrl}/api`;
+  }
+  if (import.meta.env.PROD) {
+    return 'https://igr-parcel-service.onrender.com/api';
+  }
+  return '/api';
+};
+
 const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json'
   }
