@@ -74,82 +74,12 @@ const ReportsView = () => {
     setDriverId('ALL');
   };
 
-  // Print Official Delivery Run Sheet
+  // Print Delivery Run Sheet / Orders Table
   const handlePrintRunSheet = () => {
     if (!reportData || !reportData.orders || reportData.orders.length === 0) {
       showToast('Please run the report and ensure there are orders to print on the run sheet.', 'error');
       return;
     }
-
-    const printArea = document.getElementById('printableRunSheetArea');
-    if (!printArea) return;
-
-    const s = reportData.summary;
-    const orders = reportData.orders;
-    const dateStr = singleDate ? new Date(singleDate).toLocaleDateString() : `${startDate} to ${endDate}`;
-
-    const rowsHtml = orders.map((o, idx) => `
-      <tr>
-        <td style="border: 1px solid #333; padding: 6px; text-align: center;">${idx + 1}</td>
-        <td style="border: 1px solid #333; padding: 6px; font-weight: bold;">${o.sender_name}</td>
-        <td style="border: 1px solid #333; padding: 6px; font-weight: bold;">${o.receiver_name}</td>
-        <td style="border: 1px solid #333; padding: 6px; text-align: center; font-family: monospace; font-weight: bold;">${o.lr_number}</td>
-        <td style="border: 1px solid #333; padding: 6px; text-align: center;">${o.pieces}</td>
-        <td style="border: 1px solid #333; padding: 6px; text-align: center;">${o.from_station}</td>
-        <td style="border: 1px solid #333; padding: 6px; text-align: center;">${o.to_station}</td>
-        <td style="border: 1px solid #333; padding: 6px; text-align: center; font-weight: bold;">${o.payment_mode}</td>
-        <td style="border: 1px solid #333; padding: 6px; text-align: right; font-weight: bold;">₹${o.total_amount}</td>
-        <td style="border: 1px solid #333; padding: 6px; font-size: 0.8rem;">${o.remarks || ''}</td>
-      </tr>
-    `).join('');
-
-    printArea.innerHTML = `
-      <div style="font-family: Arial, sans-serif; padding: 20px; color: #000; background: #fff; max-width: 900px; margin: 0 auto;">
-        <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 12px;">
-          <h1 style="font-size: 1.8rem; margin: 0; letter-spacing: 0.05em;">IGR QUICK PARCEL SERVICE</h1>
-          <h3 style="font-size: 1.2rem; margin: 2px 0;">ES TRANSPORTERS</h3>
-          <p style="margin: 0; font-size: 0.85rem; font-weight: bold;">KARAIKAL - PUDUCHERRY | DELIVERY RUN SHEET</p>
-        </div>
-
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-size: 0.85rem; margin-bottom: 12px; border: 1px solid #333; padding: 8px;">
-          <div><strong>DATE:</strong> ${dateStr}</div>
-          <div><strong>TOTAL BILLS:</strong> ${s.totalBills}</div>
-          <div><strong>TOTAL PCS:</strong> ${s.totalPieces}</div>
-          <div><strong>TOTAL AMOUNT:</strong> ₹${s.totalAmount}</div>
-          <div><strong>PAID TOTAL:</strong> ₹${s.totalPaid}</div>
-          <div><strong>TO-PAY TOTAL:</strong> ₹${s.totalToPay}</div>
-          <div><strong>CREDIT TOTAL:</strong> ₹${s.totalCredit}</div>
-          <div><strong>GSTIN:</strong> 34BJCPM0785J1Z3</div>
-        </div>
-
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 30px;">
-          <thead>
-            <tr style="background: #e2e8f0;">
-              <th style="border: 1px solid #333; padding: 6px;">SL</th>
-              <th style="border: 1px solid #333; padding: 6px;">SENDER</th>
-              <th style="border: 1px solid #333; padding: 6px;">RECEIVER</th>
-              <th style="border: 1px solid #333; padding: 6px;">LR NO</th>
-              <th style="border: 1px solid #333; padding: 6px;">PCS</th>
-              <th style="border: 1px solid #333; padding: 6px;">FROM</th>
-              <th style="border: 1px solid #333; padding: 6px;">TO</th>
-              <th style="border: 1px solid #333; padding: 6px;">MODE</th>
-              <th style="border: 1px solid #333; padding: 6px;">AMOUNT</th>
-              <th style="border: 1px solid #333; padding: 6px;">REMARKS</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
-        </table>
-
-        <div style="display: flex; justify-content: space-between; margin-top: 50px; font-size: 0.85rem; text-align: center;">
-          <div style="width: 200px; border-top: 1px solid #000; padding-top: 6px;"><strong>STAFF SIGNATURE</strong></div>
-          <div style="width: 200px; border-top: 1px solid #000; padding-top: 6px;"><strong>DRIVER SIGNATURE</strong></div>
-          <div style="width: 200px; border-top: 1px solid #000; padding-top: 6px;"><strong>CHECKED & VERIFIED BY</strong></div>
-        </div>
-      </div>
-    `;
-
     window.print();
   };
 
@@ -193,7 +123,7 @@ const ReportsView = () => {
   return (
     <div>
       {/* Filter Card */}
-      <div style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', padding: 'clamp(16px, 3vw, 24px)', marginBottom: '24px' }}>
+      <div className="no-print" style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', padding: 'clamp(16px, 3vw, 24px)', marginBottom: '24px' }}>
         <div className="flex items-center gap-2" style={{ marginBottom: '16px' }}>
           <Filter size={18} color="var(--primary)" />
           <h3 style={{ fontSize: '1.15rem', color: 'var(--primary-dark)' }}>Daily Reports & Multi-Filters</h3>
@@ -320,7 +250,7 @@ const ReportsView = () => {
           <div className="flex items-center gap-3">
             <button className="btn btn-accent" onClick={handlePrintRunSheet}>
               <Printer size={16} />
-              <span>Print Delivery Run Sheet</span>
+              <span>Print Orders Table</span>
             </button>
             <button className="btn btn-outline" onClick={handleExportCSV}>
               <Download size={16} />
@@ -331,7 +261,7 @@ const ReportsView = () => {
       </div>
 
       {/* Metric Summary Badges */}
-      <div className="stats-grid" style={{ marginBottom: '24px' }}>
+      <div className="stats-grid no-print" style={{ marginBottom: '24px' }}>
         <div className="stat-card" style={{ padding: '16px' }}>
           <div className="stat-card-info">
             <h4>Total Bills</h4>
@@ -375,16 +305,38 @@ const ReportsView = () => {
         </div>
       </div>
 
+      {/* Official Print Header (Visible ONLY on print) */}
+      <div className="print-only" style={{ marginBottom: '14px', borderBottom: '2px solid #000', paddingBottom: '8px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+          <h2 style={{ fontSize: '1.45rem', fontWeight: 800, margin: 0, color: '#000' }}>
+            ES TRANSPORTERS | IGR QUICK PARCEL SERVICE
+          </h2>
+          <div style={{ fontSize: '0.95rem', fontWeight: 700, margin: '2px 0', color: '#1e293b' }}>
+            DAILY ORDER REPORT
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#475569' }}>
+            Head Office: Karaikal | Branch Office: Puducherry | Phone: 94424 85296 / 93604 27527
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #333', padding: '6px 10px', background: '#f8fafc' }}>
+          <span>DATE: {singleDate ? new Date(singleDate).toLocaleDateString('en-IN') : (startDate && endDate ? `${startDate} to ${endDate}` : 'All Dates')}</span>
+          <span>ROUTE: {fromStation !== 'ALL' ? fromStation : 'All'} ➔ {toStation !== 'ALL' ? toStation : 'All'}</span>
+          <span>TOTAL ORDERS: {orders.length}</span>
+          <span>TOTAL FREIGHT: ₹{Number(s.totalAmount).toLocaleString()}</span>
+        </div>
+      </div>
+
       {/* Filtered Report Table */}
       <div className="table-card">
-        <div className="table-header">
+        <div className="table-header no-print">
           <h3 style={{ fontSize: '1.15rem', color: 'var(--primary-dark)' }}>Report Order Details</h3>
         </div>
         <div className="table-responsive">
           <table className="data-table">
             <thead>
               <tr>
-                <th>SL</th>
+                <th style={{ width: '40px', textAlign: 'center' }}>SL</th>
                 <th>LR No</th>
                 <th>Date</th>
                 <th>Sender ➔ Receiver</th>
@@ -392,7 +344,7 @@ const ReportsView = () => {
                 <th>Pieces</th>
                 <th>Delivery Status</th>
                 <th>Payment Mode</th>
-                <th>Amount</th>
+                <th style={{ textAlign: 'right' }}>Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -409,7 +361,7 @@ const ReportsView = () => {
               ) : (
                 orders.map((o, idx) => (
                   <tr key={o.id}>
-                    <td>{idx + 1}</td>
+                    <td style={{ textAlign: 'center' }}>{idx + 1}</td>
                     <td><strong style={{ color: 'var(--primary-dark)' }}>#{o.lr_number}</strong></td>
                     <td>{new Date(o.booking_date).toLocaleDateString()}</td>
                     <td><strong>{o.sender_name}</strong> ➔ <strong>{o.receiver_name}</strong></td>
@@ -417,25 +369,55 @@ const ReportsView = () => {
                     <td>{o.pieces} Pcs</td>
                     <td>
                       <span className={`badge ${o.delivery_status === 'DELIVERED' ? 'badge-delivered' : 'badge-in-transit'}`}>
-                        {o.delivery_status}
+                        {o.delivery_status.replace(/_/g, ' ')}
                       </span>
                     </td>
                     <td>
                       <span className={`badge ${o.payment_status === 'PAID' ? 'badge-paid' : 'badge-topay'}`}>
-                        {o.payment_mode} ({o.payment_status})
+                        {o.payment_mode.replace(/_/g, ' ')} ({o.payment_status.replace(/_/g, ' ')})
                       </span>
                     </td>
-                    <td><strong>₹{Number(o.total_amount).toLocaleString()}</strong></td>
+                    <td style={{ textAlign: 'right' }}><strong>₹{Number(o.total_amount).toLocaleString()}</strong></td>
                   </tr>
                 ))
               )}
             </tbody>
+            {orders.length > 0 && (
+              <tfoot>
+                <tr style={{ fontWeight: 800, background: '#f8fafc', borderTop: '2px solid #333' }}>
+                  <td colSpan={5} style={{ textAlign: 'right', padding: '10px 14px' }}>
+                    TOTAL ({orders.length} Orders):
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>{s.totalPieces} Pcs</td>
+                  <td colSpan={2}></td>
+                  <td style={{ textAlign: 'right', padding: '10px 14px', color: '#15803d' }}>
+                    ₹{Number(s.totalAmount).toLocaleString()}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
 
-      {/* Hidden Print Container for Official Delivery Run Sheet */}
-      <div id="printableRunSheetArea" className="print-only"></div>
+      {/* Official Signatures (Visible ONLY in print) */}
+      <table className="print-signatures" style={{ width: '100%', border: 'none', borderCollapse: 'collapse', marginTop: '60px' }}>
+        <tbody>
+          <tr>
+            <td className="sig-cell" style={{ width: '28%', textAlign: 'center', borderTop: '1.5px solid #000', paddingTop: '8px' }}>
+              <strong>STAFF SIGNATURE</strong>
+            </td>
+            <td style={{ width: '8%', border: 'none' }}></td>
+            <td className="sig-cell" style={{ width: '28%', textAlign: 'center', borderTop: '1.5px solid #000', paddingTop: '8px' }}>
+              <strong>DRIVER SIGNATURE</strong>
+            </td>
+            <td style={{ width: '8%', border: 'none' }}></td>
+            <td className="sig-cell" style={{ width: '28%', textAlign: 'center', borderTop: '1.5px solid #000', paddingTop: '8px' }}>
+              <strong>CHECKED & VERIFIED BY</strong>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 };

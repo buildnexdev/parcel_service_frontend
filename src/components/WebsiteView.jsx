@@ -484,7 +484,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Phone Number (10 Digits) *</label>
+                <label className="form-label">Phone Number *</label>
                 <input
                   type="tel"
                   className="form-control"

@@ -4,15 +4,18 @@ import { useToast } from '../../context/ToastContext';
 import SuccessModal from '../Common/SuccessModal';
 import { 
   Package, Search, Plus, CreditCard, Eye, Printer, 
-  CheckCircle2, Clock, Truck, X, PlusCircle, AlertCircle, Phone, Edit, Trash2
+  CheckCircle2, Clock, Truck, X, PlusCircle, AlertCircle, Phone, Edit, Trash2,
+  RotateCw, Sparkles
 } from 'lucide-react';
 
 const OrdersView = ({ defaultOpenNew = false }) => {
   const { showToast } = useToast();
   const [orders, setOrders] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [generatingLr, setGeneratingLr] = useState(false);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -20,7 +23,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
   const [paymentFilter, setPaymentFilter] = useState('ALL');
 
   // Modals
-  const [isNewOrderOpen, setIsNewOrderOpen] = useState(defaultOpenNew);
+  const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isTrackingDrawerOpen, setIsTrackingDrawerOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -46,10 +49,13 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     sender_phone: '',
     receiver_name: '',
     receiver_phone: '',
-    from_station: 'Pondicherry',
-    to_station: 'Karaikal',
+    from_station: 'Karaikal',
+    to_station: 'Pondicherry',
     pieces: 1,
+    rate_per_piece: 100,
     weight_kg: 0,
+    has_separate_boxes: false,
+    box_items: [{ box_no: 1, weight: '', amount: '' }],
     description: 'Textiles / Goods',
     payment_mode: 'TO_PAY',
     payment_status: 'UNPAID',
@@ -57,6 +63,8 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     freight_amount: 100,
     other_charges: 0,
     driver_id: '',
+    vehicle_id: '',
+    vehicle_no: '',
     remarks: ''
   });
 
@@ -84,7 +92,10 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     from_station: 'Karaikal',
     to_station: 'Pondicherry',
     pieces: 1,
+    rate_per_piece: 100,
     weight_kg: 0,
+    has_separate_boxes: false,
+    box_items: [{ box_no: 1, weight: '', amount: '' }],
     description: 'Goods',
     payment_mode: 'TO_PAY',
     payment_status: 'UNPAID',
@@ -93,25 +104,472 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     other_charges: 0,
     delivery_status: 'BOOKED',
     driver_id: '',
+    vehicle_id: '',
+    vehicle_no: '',
     remarks: ''
   });
 
   useEffect(() => {
     loadMetadata();
     loadOrders();
+    if (defaultOpenNew) {
+      handleOpenNewOrder();
+    }
   }, []);
 
   const loadMetadata = async () => {
     try {
-      const [dRes, bRes] = await Promise.all([
+      const [dRes, bRes, vRes] = await Promise.all([
         api.getDrivers(),
-        api.getBranches()
+        api.getBranches(),
+        api.getVehicles()
       ]);
       if (dRes.success) setDrivers(dRes.drivers || []);
       if (bRes.success) setBranches(bRes.branches || []);
+      if (vRes.success) setVehicles(vRes.vehicles || []);
     } catch (err) {
-      console.error('Failed to load drivers/branches metadata:', err);
+      console.error('Failed to load drivers/branches/vehicles metadata:', err);
     }
+  };
+
+  // Auto-generate next waybill / LR number: Today's date + Station code (e.g. Karaikal -> KA) + sequence
+  const fetchNextWaybill = async (fromStation, date) => {
+    try {
+      setGeneratingLr(true);
+      const res = await api.getNextWaybillNumber({
+        from_station: fromStation || 'Karaikal',
+        date: date || new Date().toISOString().split('T')[0]
+      });
+      if (res.success && res.next_lr) {
+        return res.next_lr;
+      }
+    } catch (err) {
+      console.error('Failed to get next waybill number:', err);
+    } finally {
+      setGeneratingLr(false);
+    }
+    return '';
+  };
+
+  const handleOpenNewOrder = async () => {
+    const station = orderForm.from_station || 'Karaikal';
+    const date = orderForm.booking_date || new Date().toISOString().split('T')[0];
+    const nextLr = await fetchNextWaybill(station, date);
+    setOrderForm(prev => ({
+      ...prev,
+      lr_number: nextLr || prev.lr_number
+    }));
+    setIsNewOrderOpen(true);
+  };
+
+  const handleStationOrDateChange = async (station, date) => {
+    const newStation = station !== undefined ? station : orderForm.from_station;
+    const newDate = date !== undefined ? date : orderForm.booking_date;
+    const nextLr = await fetchNextWaybill(newStation, newDate);
+    setOrderForm(prev => ({
+      ...prev,
+      from_station: newStation,
+      booking_date: newDate,
+      lr_number: nextLr || prev.lr_number
+    }));
+  };
+
+  const handleSelectVehicle = (vehicleId) => {
+    if (!vehicleId) {
+      setOrderForm(prev => ({ ...prev, vehicle_id: '', vehicle_no: '' }));
+      return;
+    }
+    const selectedVeh = vehicles.find(v => v.id.toString() === vehicleId.toString());
+    if (selectedVeh) {
+      const matchingDriver = drivers.find(d => d.name && selectedVeh.driver_name && d.name.toLowerCase() === selectedVeh.driver_name.toLowerCase());
+      setOrderForm(prev => ({
+        ...prev,
+        vehicle_id: selectedVeh.id,
+        vehicle_no: selectedVeh.vehicle_no,
+        driver_id: matchingDriver ? matchingDriver.id : prev.driver_id
+      }));
+    }
+  };
+
+  const handleSelectEditVehicle = (vehicleId) => {
+    if (!vehicleId) {
+      setEditForm(prev => ({ ...prev, vehicle_id: '', vehicle_no: '' }));
+      return;
+    }
+    const selectedVeh = vehicles.find(v => v.id.toString() === vehicleId.toString());
+    if (selectedVeh) {
+      const matchingDriver = drivers.find(d => d.name && selectedVeh.driver_name && d.name.toLowerCase() === selectedVeh.driver_name.toLowerCase());
+      setEditForm(prev => ({
+        ...prev,
+        vehicle_id: selectedVeh.id,
+        vehicle_no: selectedVeh.vehicle_no,
+        driver_id: matchingDriver ? matchingDriver.id : prev.driver_id
+      }));
+    }
+  };
+
+  // ==========================================
+  // NEW ORDER: PIECES, RATE, & BOX CALCULATIONS
+  // ==========================================
+  const handlePiecesChange = (val) => {
+    const p = Math.max(1, parseInt(val, 10) || 1);
+    setOrderForm(prev => {
+      const rate = parseFloat(prev.rate_per_piece) || 0;
+      let newBoxes = prev.box_items || [];
+      if (prev.has_separate_boxes) {
+        if (p > newBoxes.length) {
+          const added = Array.from({ length: p - newBoxes.length }, (_, i) => ({
+            box_no: newBoxes.length + i + 1,
+            weight: '',
+            amount: rate > 0 ? rate : ''
+          }));
+          newBoxes = [...newBoxes, ...added];
+        } else {
+          newBoxes = newBoxes.slice(0, p);
+        }
+      }
+      const hasBoxAmounts = prev.has_separate_boxes && newBoxes.some(b => parseFloat(b.amount) > 0);
+      const sumBoxAmounts = hasBoxAmounts ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
+      const newFreight = hasBoxAmounts ? sumBoxAmounts : (rate > 0 ? p * rate : prev.freight_amount);
+      const sumW = prev.has_separate_boxes ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0) : prev.weight_kg;
+
+      return {
+        ...prev,
+        pieces: p,
+        freight_amount: newFreight,
+        box_items: newBoxes,
+        weight_kg: prev.has_separate_boxes && sumW > 0 ? parseFloat(sumW.toFixed(2)) : prev.weight_kg
+      };
+    });
+  };
+
+  const handleRateChange = (val) => {
+    const rate = val === '' ? '' : Math.max(0, parseFloat(val) || 0);
+    setOrderForm(prev => {
+      const p = parseInt(prev.pieces, 10) || 1;
+      const numRate = parseFloat(rate) || 0;
+      let newBoxes = prev.box_items || [];
+      if (prev.has_separate_boxes && numRate > 0) {
+        newBoxes = newBoxes.map(b => ({
+          ...b,
+          amount: (b.amount === '' || parseFloat(b.amount) === parseFloat(prev.rate_per_piece)) ? numRate : b.amount
+        }));
+      }
+      const hasBoxAmounts = prev.has_separate_boxes && newBoxes.some(b => parseFloat(b.amount) > 0);
+      const sumBoxAmounts = hasBoxAmounts ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
+      const newFreight = hasBoxAmounts ? sumBoxAmounts : (numRate > 0 ? p * numRate : prev.freight_amount);
+
+      return {
+        ...prev,
+        rate_per_piece: rate,
+        box_items: newBoxes,
+        freight_amount: newFreight
+      };
+    });
+  };
+
+  const handleFreightAmountChange = (val) => {
+    const amt = val === '' ? '' : Math.max(0, parseFloat(val) || 0);
+    setOrderForm(prev => {
+      const p = parseInt(prev.pieces, 10) || 1;
+      const numAmt = parseFloat(amt) || 0;
+      const derivedRate = p > 0 ? parseFloat((numAmt / p).toFixed(2)) : 0;
+      return {
+        ...prev,
+        freight_amount: amt,
+        rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
+      };
+    });
+  };
+
+  const handleToggleSeparateBoxes = (checked) => {
+    setOrderForm(prev => {
+      const p = parseInt(prev.pieces, 10) || 1;
+      const rate = parseFloat(prev.rate_per_piece) || 0;
+      let items = prev.box_items || [];
+      if (checked) {
+        if (items.length !== p) {
+          items = Array.from({ length: p }, (_, i) => items[i] || { box_no: i + 1, weight: '', amount: rate > 0 ? rate : '' });
+        } else {
+          items = items.map((b) => ({
+            ...b,
+            amount: b.amount !== undefined && b.amount !== '' ? b.amount : (rate > 0 ? rate : '')
+          }));
+        }
+        const sumW = items.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
+        const hasBoxAmounts = items.some(b => parseFloat(b.amount) > 0);
+        const sumAmt = hasBoxAmounts ? items.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : (rate > 0 ? p * rate : prev.freight_amount);
+        return {
+          ...prev,
+          has_separate_boxes: true,
+          box_items: items,
+          weight_kg: sumW > 0 ? parseFloat(sumW.toFixed(2)) : prev.weight_kg,
+          freight_amount: sumAmt > 0 ? parseFloat(sumAmt.toFixed(2)) : prev.freight_amount
+        };
+      } else {
+        return {
+          ...prev,
+          has_separate_boxes: false
+        };
+      }
+    });
+  };
+
+  const handleBoxWeightChange = (index, val) => {
+    setOrderForm(prev => {
+      const updated = prev.box_items.map((b, i) => i === index ? { ...b, weight: val } : b);
+      const sumW = updated.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
+      return {
+        ...prev,
+        box_items: updated,
+        weight_kg: parseFloat(sumW.toFixed(2))
+      };
+    });
+  };
+
+  const handleBoxAmountChange = (index, val) => {
+    setOrderForm(prev => {
+      const updated = prev.box_items.map((b, i) => i === index ? { ...b, amount: val } : b);
+      const sumAmt = updated.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0);
+      const p = parseInt(prev.pieces, 10) || 1;
+      const derivedRate = p > 0 ? parseFloat((sumAmt / p).toFixed(2)) : prev.rate_per_piece;
+      return {
+        ...prev,
+        box_items: updated,
+        freight_amount: parseFloat(sumAmt.toFixed(2)),
+        rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
+      };
+    });
+  };
+
+  const handleAddBox = () => {
+    setOrderForm(prev => {
+      const rate = parseFloat(prev.rate_per_piece) || 0;
+      const newItems = [
+        ...(prev.box_items || []),
+        { box_no: (prev.box_items?.length || 0) + 1, weight: '', amount: rate > 0 ? rate : '' }
+      ];
+      const newPcs = newItems.length;
+      const sumW = newItems.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
+      const hasBoxAmounts = newItems.some(b => parseFloat(b.amount) > 0);
+      const sumBoxAmounts = hasBoxAmounts ? newItems.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
+      const newFreight = hasBoxAmounts ? sumBoxAmounts : (rate > 0 ? newPcs * rate : prev.freight_amount);
+      const derivedRate = newPcs > 0 && newFreight > 0 ? parseFloat((newFreight / newPcs).toFixed(2)) : rate;
+
+      return {
+        ...prev,
+        pieces: newPcs,
+        box_items: newItems,
+        weight_kg: parseFloat(sumW.toFixed(2)),
+        freight_amount: newFreight,
+        rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
+      };
+    });
+  };
+
+  const handleRemoveBox = (index) => {
+    setOrderForm(prev => {
+      if ((prev.box_items?.length || 0) <= 1) return prev;
+      const filtered = prev.box_items.filter((_, i) => i !== index).map((b, i) => ({ ...b, box_no: i + 1 }));
+      const newPcs = filtered.length;
+      const sumW = filtered.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
+      const hasBoxAmounts = filtered.some(b => parseFloat(b.amount) > 0);
+      const sumBoxAmounts = hasBoxAmounts ? filtered.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
+      const rate = parseFloat(prev.rate_per_piece) || 0;
+      const newFreight = hasBoxAmounts ? sumBoxAmounts : (rate > 0 ? newPcs * rate : prev.freight_amount);
+      const derivedRate = newPcs > 0 && newFreight > 0 ? parseFloat((newFreight / newPcs).toFixed(2)) : rate;
+
+      return {
+        ...prev,
+        pieces: newPcs,
+        box_items: filtered,
+        weight_kg: parseFloat(sumW.toFixed(2)),
+        freight_amount: newFreight,
+        rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
+      };
+    });
+  };
+
+  // ==========================================
+  // EDIT ORDER: PIECES, RATE, & BOX CALCULATIONS
+  // ==========================================
+  const handleEditPiecesChange = (val) => {
+    const p = Math.max(1, parseInt(val, 10) || 1);
+    setEditForm(prev => {
+      const rate = parseFloat(prev.rate_per_piece) || 0;
+      let newBoxes = prev.box_items || [];
+      if (prev.has_separate_boxes) {
+        if (p > newBoxes.length) {
+          const added = Array.from({ length: p - newBoxes.length }, (_, i) => ({
+            box_no: newBoxes.length + i + 1,
+            weight: '',
+            amount: rate > 0 ? rate : ''
+          }));
+          newBoxes = [...newBoxes, ...added];
+        } else {
+          newBoxes = newBoxes.slice(0, p);
+        }
+      }
+      const hasBoxAmounts = prev.has_separate_boxes && newBoxes.some(b => parseFloat(b.amount) > 0);
+      const sumBoxAmounts = hasBoxAmounts ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
+      const newFreight = hasBoxAmounts ? sumBoxAmounts : (rate > 0 ? p * rate : prev.freight_amount);
+      const sumW = prev.has_separate_boxes ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0) : prev.weight_kg;
+
+      return {
+        ...prev,
+        pieces: p,
+        freight_amount: newFreight,
+        box_items: newBoxes,
+        weight_kg: prev.has_separate_boxes && sumW > 0 ? parseFloat(sumW.toFixed(2)) : prev.weight_kg
+      };
+    });
+  };
+
+  const handleEditRateChange = (val) => {
+    const rate = val === '' ? '' : Math.max(0, parseFloat(val) || 0);
+    setEditForm(prev => {
+      const p = parseInt(prev.pieces, 10) || 1;
+      const numRate = parseFloat(rate) || 0;
+      let newBoxes = prev.box_items || [];
+      if (prev.has_separate_boxes && numRate > 0) {
+        newBoxes = newBoxes.map(b => ({
+          ...b,
+          amount: (b.amount === '' || parseFloat(b.amount) === parseFloat(prev.rate_per_piece)) ? numRate : b.amount
+        }));
+      }
+      const hasBoxAmounts = prev.has_separate_boxes && newBoxes.some(b => parseFloat(b.amount) > 0);
+      const sumBoxAmounts = hasBoxAmounts ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
+      const newFreight = hasBoxAmounts ? sumBoxAmounts : (numRate > 0 ? p * numRate : prev.freight_amount);
+
+      return {
+        ...prev,
+        rate_per_piece: rate,
+        box_items: newBoxes,
+        freight_amount: newFreight
+      };
+    });
+  };
+
+  const handleEditFreightAmountChange = (val) => {
+    const amt = val === '' ? '' : Math.max(0, parseFloat(val) || 0);
+    setEditForm(prev => {
+      const p = parseInt(prev.pieces, 10) || 1;
+      const numAmt = parseFloat(amt) || 0;
+      const derivedRate = p > 0 ? parseFloat((numAmt / p).toFixed(2)) : 0;
+      return {
+        ...prev,
+        freight_amount: amt,
+        rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
+      };
+    });
+  };
+
+  const handleEditToggleSeparateBoxes = (checked) => {
+    setEditForm(prev => {
+      const p = parseInt(prev.pieces, 10) || 1;
+      const rate = parseFloat(prev.rate_per_piece) || 0;
+      let items = prev.box_items || [];
+      if (checked) {
+        if (items.length !== p) {
+          items = Array.from({ length: p }, (_, i) => items[i] || { box_no: i + 1, weight: '', amount: rate > 0 ? rate : '' });
+        } else {
+          items = items.map((b) => ({
+            ...b,
+            amount: b.amount !== undefined && b.amount !== '' ? b.amount : (rate > 0 ? rate : '')
+          }));
+        }
+        const sumW = items.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
+        const hasBoxAmounts = items.some(b => parseFloat(b.amount) > 0);
+        const sumAmt = hasBoxAmounts ? items.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : (rate > 0 ? p * rate : prev.freight_amount);
+        return {
+          ...prev,
+          has_separate_boxes: true,
+          box_items: items,
+          weight_kg: sumW > 0 ? parseFloat(sumW.toFixed(2)) : prev.weight_kg,
+          freight_amount: sumAmt > 0 ? parseFloat(sumAmt.toFixed(2)) : prev.freight_amount
+        };
+      } else {
+        return {
+          ...prev,
+          has_separate_boxes: false
+        };
+      }
+    });
+  };
+
+  const handleEditBoxWeightChange = (index, val) => {
+    setEditForm(prev => {
+      const updated = prev.box_items.map((b, i) => i === index ? { ...b, weight: val } : b);
+      const sumW = updated.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
+      return {
+        ...prev,
+        box_items: updated,
+        weight_kg: parseFloat(sumW.toFixed(2))
+      };
+    });
+  };
+
+  const handleEditBoxAmountChange = (index, val) => {
+    setEditForm(prev => {
+      const updated = prev.box_items.map((b, i) => i === index ? { ...b, amount: val } : b);
+      const sumAmt = updated.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0);
+      const p = parseInt(prev.pieces, 10) || 1;
+      const derivedRate = p > 0 ? parseFloat((sumAmt / p).toFixed(2)) : prev.rate_per_piece;
+      return {
+        ...prev,
+        box_items: updated,
+        freight_amount: parseFloat(sumAmt.toFixed(2)),
+        rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
+      };
+    });
+  };
+
+  const handleEditAddBox = () => {
+    setEditForm(prev => {
+      const rate = parseFloat(prev.rate_per_piece) || 0;
+      const newItems = [
+        ...(prev.box_items || []),
+        { box_no: (prev.box_items?.length || 0) + 1, weight: '', amount: rate > 0 ? rate : '' }
+      ];
+      const newPcs = newItems.length;
+      const sumW = newItems.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
+      const hasBoxAmounts = newItems.some(b => parseFloat(b.amount) > 0);
+      const sumBoxAmounts = hasBoxAmounts ? newItems.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
+      const newFreight = hasBoxAmounts ? sumBoxAmounts : (rate > 0 ? newPcs * rate : prev.freight_amount);
+      const derivedRate = newPcs > 0 && newFreight > 0 ? parseFloat((newFreight / newPcs).toFixed(2)) : rate;
+
+      return {
+        ...prev,
+        pieces: newPcs,
+        box_items: newItems,
+        weight_kg: parseFloat(sumW.toFixed(2)),
+        freight_amount: newFreight,
+        rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
+      };
+    });
+  };
+
+  const handleEditRemoveBox = (index) => {
+    setEditForm(prev => {
+      if ((prev.box_items?.length || 0) <= 1) return prev;
+      const filtered = prev.box_items.filter((_, i) => i !== index).map((b, i) => ({ ...b, box_no: i + 1 }));
+      const newPcs = filtered.length;
+      const sumW = filtered.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
+      const hasBoxAmounts = filtered.some(b => parseFloat(b.amount) > 0);
+      const sumBoxAmounts = hasBoxAmounts ? filtered.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
+      const rate = parseFloat(prev.rate_per_piece) || 0;
+      const newFreight = hasBoxAmounts ? sumBoxAmounts : (rate > 0 ? newPcs * rate : prev.freight_amount);
+      const derivedRate = newPcs > 0 && newFreight > 0 ? parseFloat((newFreight / newPcs).toFixed(2)) : rate;
+
+      return {
+        ...prev,
+        pieces: newPcs,
+        box_items: filtered,
+        weight_kg: parseFloat(sumW.toFixed(2)),
+        freight_amount: newFreight,
+        rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
+      };
+    });
   };
 
   const loadOrders = async () => {
@@ -269,13 +727,25 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       return;
     }
     try {
+      const boxDetailsToSave = orderForm.has_separate_boxes && orderForm.box_items?.length > 0
+        ? orderForm.box_items.map((b, i) => ({
+            box_no: i + 1,
+            weight: parseFloat(b.weight) || 0,
+            amount: parseFloat(b.amount) || 0
+          }))
+        : null;
+
       const res = await api.createOrder({
         ...orderForm,
         freight_amount: parseFloat(orderForm.freight_amount) || 0,
+        rate_per_piece: parseFloat(orderForm.rate_per_piece) || 0,
         other_charges: parseFloat(orderForm.other_charges) || 0,
         pieces: parseInt(orderForm.pieces, 10) || 1,
         weight_kg: parseFloat(orderForm.weight_kg) || 0,
-        driver_id: orderForm.driver_id ? parseInt(orderForm.driver_id, 10) : null
+        box_details: boxDetailsToSave,
+        driver_id: orderForm.driver_id ? parseInt(orderForm.driver_id, 10) : null,
+        vehicle_id: orderForm.vehicle_id ? parseInt(orderForm.vehicle_id, 10) : null,
+        vehicle_no: orderForm.vehicle_no || null
       });
       showToast(res.message || 'Order created successfully!', 'success');
       setIsNewOrderOpen(false);
@@ -292,7 +762,8 @@ const OrdersView = ({ defaultOpenNew = false }) => {
             'Sender': `${created.sender_name} (${created.sender_phone || 'N/A'})`,
             'Receiver': `${created.receiver_name} (${created.receiver_phone || 'N/A'})`,
             'Packages': `${created.pieces} Pcs / ${created.weight_kg} Kg`,
-            'Total Freight': `₹${Number(created.total_amount).toLocaleString()} [${created.payment_mode} - ${created.payment_status}]`
+            'Total Freight': `₹${Number(created.total_amount).toLocaleString()} [${created.payment_mode} - ${created.payment_status}]`,
+            'Assigned Vehicle': created.vehicle_no || created.driver_vehicle || 'Unassigned'
           },
           orderToPrint: created
         });
@@ -305,6 +776,34 @@ const OrdersView = ({ defaultOpenNew = false }) => {
   // Open Edit Order Modal
   const handleOpenEditOrder = (order) => {
     setEditingOrderId(order.id);
+    let initialBoxes = [];
+    let hasBoxes = false;
+    const pcs = order.pieces || 1;
+    const rate = order.rate_per_piece !== undefined && parseFloat(order.rate_per_piece) > 0
+      ? order.rate_per_piece
+      : (pcs > 0 ? parseFloat(((order.freight_amount || 0) / pcs).toFixed(2)) : 0);
+
+    if (order.box_details) {
+      try {
+        const parsed = typeof order.box_details === 'string' ? JSON.parse(order.box_details) : order.box_details;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          initialBoxes = parsed.map((b, i) => ({
+            box_no: b.box_no || i + 1,
+            weight: b.weight !== undefined ? b.weight : (typeof b === 'number' ? b : ''),
+            amount: b.amount !== undefined ? b.amount : (rate > 0 ? rate : '')
+          }));
+          hasBoxes = true;
+        }
+      } catch (e) {}
+    }
+    if (!hasBoxes) {
+      initialBoxes = Array.from({ length: pcs }, (_, i) => ({
+        box_no: i + 1,
+        weight: '',
+        amount: rate > 0 ? rate : ''
+      }));
+    }
+
     setEditForm({
       lr_number: order.lr_number || '',
       booking_date: order.booking_date ? new Date(order.booking_date).toISOString().split('T')[0] : '',
@@ -316,8 +815,11 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       receiver_address: order.receiver_address || '',
       from_station: order.from_station || 'Karaikal',
       to_station: order.to_station || 'Pondicherry',
-      pieces: order.pieces || 1,
+      pieces: pcs,
+      rate_per_piece: rate,
       weight_kg: order.weight_kg || 0,
+      has_separate_boxes: hasBoxes,
+      box_items: initialBoxes,
       description: order.description || 'Goods',
       payment_mode: order.payment_mode || 'TO_PAY',
       payment_status: order.payment_status || 'UNPAID',
@@ -326,6 +828,8 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       other_charges: order.other_charges !== undefined ? order.other_charges : 0,
       delivery_status: order.delivery_status || 'BOOKED',
       driver_id: order.driver_id || '',
+      vehicle_id: order.vehicle_id || '',
+      vehicle_no: order.vehicle_no || order.driver_vehicle || '',
       remarks: order.remarks || ''
     });
     setIsEditOrderOpen(true);
@@ -345,13 +849,25 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     }
 
     try {
+      const boxDetailsToSave = editForm.has_separate_boxes && editForm.box_items?.length > 0
+        ? editForm.box_items.map((b, i) => ({
+            box_no: i + 1,
+            weight: parseFloat(b.weight) || 0,
+            amount: parseFloat(b.amount) || 0
+          }))
+        : null;
+
       const res = await api.updateOrder(editingOrderId, {
         ...editForm,
         freight_amount: parseFloat(editForm.freight_amount) || 0,
+        rate_per_piece: parseFloat(editForm.rate_per_piece) || 0,
         other_charges: parseFloat(editForm.other_charges) || 0,
         pieces: parseInt(editForm.pieces, 10) || 1,
         weight_kg: parseFloat(editForm.weight_kg) || 0,
-        driver_id: editForm.driver_id ? parseInt(editForm.driver_id, 10) : null
+        box_details: boxDetailsToSave,
+        driver_id: editForm.driver_id ? parseInt(editForm.driver_id, 10) : null,
+        vehicle_id: editForm.vehicle_id ? parseInt(editForm.vehicle_id, 10) : null,
+        vehicle_no: editForm.vehicle_no || null
       });
       showToast(res.message || 'Order updated successfully!', 'success');
       setIsEditOrderOpen(false);
@@ -381,6 +897,22 @@ const OrdersView = ({ defaultOpenNew = false }) => {
   const handlePrintLR = (order) => {
     const printArea = document.getElementById('printableOrderArea');
     if (!printArea) return;
+
+    let boxSummary = '';
+    let hasCustomBoxRates = false;
+    if (order.box_details) {
+      try {
+        const parsed = typeof order.box_details === 'string' ? JSON.parse(order.box_details) : order.box_details;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          hasCustomBoxRates = parsed.some(b => parseFloat(b.amount) > 0);
+          boxSummary = parsed.map((b, i) => `Box ${i + 1}: ${b.weight} kg${parseFloat(b.amount) > 0 ? ` (₹${b.amount})` : ''}`).join(' | ');
+        }
+      } catch (e) {}
+    }
+
+    const rateText = hasCustomBoxRates
+      ? `<div style="font-size: 0.725rem; color: #047857; margin-top: 2px; font-weight: 600;">Separate Box Rates</div>`
+      : (order.rate_per_piece > 0 ? `<div style="font-size: 0.725rem; color: #475569; margin-top: 2px;">Rate: ₹${order.rate_per_piece}/pc</div>` : '');
 
     printArea.innerHTML = `
       <div style="padding: 24px; font-family: sans-serif; border: 2px dashed #b91c1c; background: #fff5f5; border-radius: 8px; max-width: 780px; margin: 0 auto; color: #1e293b;">
@@ -417,6 +949,23 @@ const OrdersView = ({ defaultOpenNew = false }) => {
           </div>
         </div>
 
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; font-size: 0.85rem;">
+          <div style="border: 1px solid #fca5a5; padding: 8px 10px; border-radius: 4px; background: #fffaf0;">
+            <strong style="color: #991b1b;">ASSIGNED VEHICLE:</strong>
+            <div style="font-family: monospace; font-size: 1rem; font-weight: 800; color: #1e293b; margin-top: 2px;">
+              ${order.vehicle_no || order.driver_vehicle || 'Direct Dispatch'}
+            </div>
+            ${order.vehicle_type ? `<div style="font-size: 0.775rem; color: #64748b;">${order.vehicle_type} ${order.vehicle_capacity ? `(${order.vehicle_capacity})` : ''}</div>` : ''}
+          </div>
+          <div style="border: 1px solid #fca5a5; padding: 8px 10px; border-radius: 4px; background: #fffaf0;">
+            <strong style="color: #991b1b;">ASSIGNED DRIVER:</strong>
+            <div style="font-size: 0.95rem; font-weight: 700; color: #1e293b; margin-top: 2px;">
+              ${order.driver_name || 'Fleet Driver'}
+            </div>
+            <div style="font-size: 0.775rem; color: #64748b;">Contact: ${order.driver_phone || 'N/A'}</div>
+          </div>
+        </div>
+
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 0.9rem;">
           <thead>
             <tr style="background: #fee2e2; border-bottom: 2px solid #b91c1c;">
@@ -430,13 +979,23 @@ const OrdersView = ({ defaultOpenNew = false }) => {
           <tbody>
             <tr>
               <td style="padding: 10px; border-bottom: 1px solid #fca5a5;">${order.description || 'General Goods'}</td>
-              <td style="padding: 10px; border-bottom: 1px solid #fca5a5; text-align: center;">${order.pieces} Pcs</td>
-              <td style="padding: 10px; border-bottom: 1px solid #fca5a5; text-align: center;">${order.weight_kg} Kg</td>
+              <td style="padding: 10px; border-bottom: 1px solid #fca5a5; text-align: center;">
+                <strong>${order.pieces} Pcs</strong>
+                ${rateText}
+              </td>
+              <td style="padding: 10px; border-bottom: 1px solid #fca5a5; text-align: center;">
+                <strong>${order.weight_kg} Kg</strong>
+                ${boxSummary ? `<div style="font-size: 0.725rem; color: #64748b; margin-top: 2px; line-height: 1.3;">(${boxSummary})</div>` : ''}
+              </td>
               <td style="padding: 10px; border-bottom: 1px solid #fca5a5; text-align: center; font-weight: bold; color: #991b1b;">
                 ${order.payment_mode} (${order.payment_status})
               </td>
               <td style="padding: 10px; border-bottom: 1px solid #fca5a5; text-align: right; font-weight: bold; font-size: 1.1rem;">
                 ₹${Number(order.total_amount).toLocaleString()}
+                ${hasCustomBoxRates
+                  ? `<div style="font-size: 0.725rem; color: #475569; font-weight: normal; margin-top: 2px;">(Sum of box rates${order.other_charges > 0 ? ` + ₹${order.other_charges}` : ''})</div>`
+                  : (order.rate_per_piece > 0 ? `<div style="font-size: 0.725rem; color: #475569; font-weight: normal; margin-top: 2px;">(${order.pieces} × ₹${order.rate_per_piece}${order.other_charges > 0 ? ` + ₹${order.other_charges}` : ''})</div>` : '')
+                }
               </td>
             </tr>
           </tbody>
@@ -450,7 +1009,91 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       </div>
     `;
 
+    document.body.classList.add('printing-order-lr');
     window.print();
+    setTimeout(() => {
+      document.body.classList.remove('printing-order-lr');
+      if (printArea) printArea.innerHTML = '';
+    }, 1000);
+  };
+
+  // Print 58mm/80mm Portable Bluetooth Thermal Slip for Drivers
+  const handlePrintThermalReceipt = (order) => {
+    const printArea = document.getElementById('printableOrderArea');
+    if (!printArea) return;
+
+    let boxSummary = '';
+    if (order.box_details) {
+      try {
+        const parsed = typeof order.box_details === 'string' ? JSON.parse(order.box_details) : order.box_details;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          boxSummary = parsed.map((b, i) => `#${i + 1}: ${b.weight}kg${parseFloat(b.amount) > 0 ? ` (₹${b.amount})` : ''}`).join(', ');
+        }
+      } catch (e) {}
+    }
+
+    printArea.innerHTML = `
+      <div style="width: 270px; margin: 0 auto; padding: 4px; font-family: monospace, 'Courier New', Courier; font-size: 11px; line-height: 1.35; color: #000; background: #fff;">
+        <div style="text-align: center; border-bottom: 1.5px dashed #000; padding-bottom: 6px; margin-bottom: 6px;">
+          <div style="font-size: 14px; font-weight: 900; letter-spacing: 0.05em;">IGR QUICK PARCEL</div>
+          <div style="font-size: 11px; font-weight: bold;">(ES TRANSPORTERS)</div>
+          <div style="font-size: 9px; margin-top: 2px;">KARAIKAL - PUDUCHERRY</div>
+          <div style="font-size: 9px;">Phone: 94424 85296 / 93604 27527</div>
+        </div>
+
+        <div style="border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px;">
+          <div style="font-size: 13px; font-weight: 900; text-align: center;">LR: #${order.lr_number}</div>
+          <div style="display: flex; justify-content: space-between; font-size: 10px; margin-top: 2px;">
+            <span>Date: ${new Date(order.booking_date).toLocaleDateString('en-IN')}</span>
+            <span>${new Date(order.booking_date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+          <div style="font-size: 11px; font-weight: bold; text-align: center; margin-top: 4px; background: #000; color: #fff; padding: 2px 4px;">
+            ${order.from_station} ➔ ${order.to_station}
+          </div>
+        </div>
+
+        <div style="border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px; font-size: 10.5px;">
+          <div><strong>SENDER:</strong> ${order.sender_name}</div>
+          <div>Phone: ${order.sender_phone || 'N/A'}</div>
+          <div style="margin-top: 3px;"><strong>RECEIVER:</strong> ${order.receiver_name}</div>
+          <div>Phone: ${order.receiver_phone || 'N/A'}</div>
+        </div>
+
+        <div style="border-bottom: 1.5px dashed #000; padding-bottom: 6px; margin-bottom: 6px;">
+          <div style="display: flex; justify-content: space-between; font-size: 11px;">
+            <span>Pieces: <strong>${order.pieces} Pcs</strong></span>
+            <span>Weight: <strong>${order.weight_kg || 0} Kg</strong></span>
+          </div>
+          ${boxSummary ? `<div style="font-size: 9.5px; color: #222; margin-top: 2px;">Boxes: ${boxSummary}</div>` : ''}
+          ${order.description ? `<div style="font-size: 10px; margin-top: 2px;">Goods: ${order.description}</div>` : ''}
+          <div style="margin-top: 5px; padding-top: 4px; border-top: 1px dotted #000; display: flex; justify-content: space-between; font-size: 13px; font-weight: 900;">
+            <span>${order.payment_mode}:</span>
+            <span>₹${Number(order.total_amount).toLocaleString()}</span>
+          </div>
+          <div style="font-size: 9.5px; text-align: right; color: #333;">Payment: ${order.payment_status}</div>
+        </div>
+
+        <div style="font-size: 10px; margin-bottom: 8px;">
+          <div>Vehicle: <strong>${order.vehicle_no || order.driver_vehicle || 'Direct Dispatch'}</strong></div>
+          <div>Driver: ${order.driver_name || 'Driver'}</div>
+        </div>
+
+        <div style="text-align: center; border-top: 1px dashed #000; padding-top: 6px; font-size: 9px;">
+          <div>*** THANK YOU - HAVE A SAFE TRIP ***</div>
+          <div style="margin-top: 20px; border-top: 1px solid #000; padding-top: 3px; display: flex; justify-content: space-between; font-size: 8.5px;">
+            <span>Customer Sign</span>
+            <span>Driver Sign</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.classList.add('printing-order-lr');
+    window.print();
+    setTimeout(() => {
+      document.body.classList.remove('printing-order-lr');
+      if (printArea) printArea.innerHTML = '';
+    }, 1000);
   };
 
   const getStatusBadge = (status) => {
@@ -485,7 +1128,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     <div>
       <div className="table-card">
         {/* Controls Header */}
-        <div className="table-header">
+        <div className="table-header no-print">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 'min(100%, 240px)', position: 'relative' }}>
             <Search size={16} style={{ position: 'absolute', left: '12px', color: '#94a3b8' }} />
             <input
@@ -524,7 +1167,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
               <option value="UNPAID">UNPAID (To-Pay / Pending)</option>
             </select>
 
-            <button className="btn btn-accent" onClick={() => setIsNewOrderOpen(true)} style={{ whiteSpace: 'nowrap' }}>
+            <button className="btn btn-accent" onClick={handleOpenNewOrder} style={{ whiteSpace: 'nowrap' }}>
               <Plus size={18} />
               <span>Add Order</span>
             </button>
@@ -542,8 +1185,8 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                 <th>Route & Cargo</th>
                 <th>Delivery Status</th>
                 <th>Freight & Payment</th>
-                <th>Driver & Vehicle</th>
-                <th style={{ textAlign: 'center', minWidth: '170px' }}>Actions</th>
+                <th>Vehicle & Driver</th>
+                <th className="no-print" style={{ textAlign: 'center', minWidth: '170px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -609,6 +1252,19 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                       <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
                         📦 {o.pieces} Pcs {o.weight_kg > 0 ? `• ${o.weight_kg} kg` : ''}
                       </div>
+                      {o.box_details && (() => {
+                        try {
+                          const boxes = typeof o.box_details === 'string' ? JSON.parse(o.box_details) : o.box_details;
+                          if (Array.isArray(boxes) && boxes.length > 0) {
+                            return (
+                              <div style={{ fontSize: '0.675rem', color: '#0369a1', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '4px', padding: '2px 6px', marginTop: '3px', width: 'fit-content' }}>
+                                📦 {boxes.map((b, i) => `#${i + 1}: ${b.weight}kg${parseFloat(b.amount) > 0 ? ` (₹${b.amount})` : ''}`).join(', ')}
+                              </div>
+                            );
+                          }
+                        } catch (e) {}
+                        return null;
+                      })()}
                     </td>
 
                     <td>{getStatusBadge(o.delivery_status)}</td>
@@ -617,37 +1273,68 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                       <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>
                         ₹{Number(o.total_amount).toLocaleString()}
                       </div>
+                      {(() => {
+                        try {
+                          const boxes = o.box_details ? (typeof o.box_details === 'string' ? JSON.parse(o.box_details) : o.box_details) : null;
+                          if (Array.isArray(boxes) && boxes.some(b => parseFloat(b.amount) > 0)) {
+                            return (
+                              <div style={{ fontSize: '0.7rem', color: '#047857', fontWeight: 600, marginTop: '2px' }}>
+                                Separate Box Rates ({boxes.length} boxes)
+                              </div>
+                            );
+                          }
+                        } catch (e) {}
+                        if (parseFloat(o.rate_per_piece) > 0 || (o.pieces > 1 && o.total_amount > 0)) {
+                          return (
+                            <div style={{ fontSize: '0.7rem', color: '#047857', fontWeight: 600, marginTop: '2px' }}>
+                              ₹{parseFloat(o.rate_per_piece) > 0 ? o.rate_per_piece : (o.total_amount / o.pieces).toFixed(0)}/pc × {o.pieces}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       <div style={{ marginTop: '4px' }}>
                         {getPaymentBadge(o.payment_mode, o.payment_status)}
                       </div>
                     </td>
 
                     <td>
-                      <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <Truck size={14} style={{ color: '#2563eb' }} />
-                        <span>{o.driver_name || 'Unassigned'}</span>
-                      </div>
-                      {o.driver_vehicle ? (
-                        <div style={{ 
+                      {(o.vehicle_no || o.driver_vehicle) ? (
+                        <div style={{
                           fontFamily: 'monospace', 
-                          fontSize: '0.75rem', 
-                          fontWeight: 700, 
+                          fontSize: '0.825rem', 
+                          fontWeight: 800, 
                           background: '#ffffff', 
-                          border: '1.5px solid #cbd5e1', 
-                          borderRadius: '4px', 
-                          padding: '1px 6px', 
-                          display: 'inline-block',
-                          marginTop: '4px',
-                          color: '#1e293b'
+                          border: '1.5px solid #0f172a', 
+                          borderRadius: '5px', 
+                          padding: '2px 8px', 
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          color: '#0f172a',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                          marginBottom: '3px'
                         }}>
-                          {o.driver_vehicle}
+                          <span style={{ fontSize: '0.6rem', background: '#0f172a', color: '#fff', padding: '1px 3px', borderRadius: '2px', fontWeight: 700 }}>IND</span>
+                          <span>{o.vehicle_no || o.driver_vehicle}</span>
                         </div>
                       ) : (
-                        <span style={{ fontSize: '0.725rem', color: '#94a3b8' }}>No vehicle assigned</span>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', display: 'block', marginBottom: '2px' }}>No vehicle assigned</span>
                       )}
+
+                      {o.vehicle_type && (
+                        <div style={{ fontSize: '0.725rem', color: '#475569', fontWeight: 600 }}>
+                          🚛 {o.vehicle_type} {o.vehicle_capacity ? `• ${o.vehicle_capacity}` : ''}
+                        </div>
+                      )}
+
+                      <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
+                        <Truck size={12} style={{ color: '#2563eb' }} />
+                        <span>{o.driver_name || 'Driver unassigned'}</span>
+                      </div>
                     </td>
 
-                    <td>
+                    <td className="no-print">
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '160px' }}>
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                           {/* IN-PLACE PAYMENT UPDATE BUTTON */}
@@ -716,15 +1403,26 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                             <span>Track</span>
                           </button>
 
-                          {/* Print LR */}
+                          {/* Print LR (A4) */}
                           <button
                             className="btn btn-outline btn-xs"
                             onClick={() => handlePrintLR(o)}
-                            title="Print Waybill / LR"
+                            title="Print Full A4 Waybill"
                             style={{ flex: 1, padding: '4px 6px', fontSize: '0.75rem', gap: '3px' }}
                           >
                             <Printer size={12} />
-                            <span>Print</span>
+                            <span>A4</span>
+                          </button>
+
+                          {/* Print Bluetooth Slip (58mm Thermal) */}
+                          <button
+                            className="btn btn-outline btn-xs"
+                            onClick={() => handlePrintThermalReceipt(o)}
+                            title="Print Portable Bluetooth Thermal Slip (Driver Slip)"
+                            style={{ flex: 1, padding: '4px 6px', fontSize: '0.75rem', gap: '3px', color: '#16a34a', borderColor: '#86efac', background: '#f0fdf4' }}
+                          >
+                            <Printer size={12} />
+                            <span>Slip 📱</span>
                           </button>
                         </div>
                       </div>
@@ -899,7 +1597,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       {/* ============================================================= */}
       {isNewOrderOpen && (
         <div className="modal-overlay" onClick={() => setIsNewOrderOpen(false)}>
-          <div className="modal-box" style={{ maxWidth: 680 }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-box" style={{ maxWidth: 960, width: 'min(96vw, 960px)' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Add New Order (LR / Bill)</h3>
               <button className="modal-close" onClick={() => setIsNewOrderOpen(false)}>
@@ -911,15 +1609,31 @@ const OrdersView = ({ defaultOpenNew = false }) => {
               <form onSubmit={handleCreateOrder}>
                 <div className="form-grid-2">
                   <div className="form-group">
-                    <label className="form-label">LR / Waybill Number *</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label className="form-label" style={{ margin: 0 }}>LR Number *</label>
+                      <button
+                        type="button"
+                        onClick={() => handleStationOrDateChange(orderForm.from_station, orderForm.booking_date)}
+                        className="btn btn-outline btn-xs"
+                        style={{ padding: '2px 8px', fontSize: '0.72rem', gap: '4px', borderColor: '#bfdbfe', color: '#1d4ed8', background: '#eff6ff' }}
+                        title="Auto-calculate next sequence number based on origin station and booking date"
+                      >
+                        <RotateCw size={11} className={generatingLr ? 'spin' : ''} />
+                        <span>Auto Next</span>
+                      </button>
+                    </div>
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="e.g. 18002"
+                      placeholder="e.g. 20261020KA001"
                       value={orderForm.lr_number}
                       onChange={(e) => setOrderForm({ ...orderForm, lr_number: e.target.value })}
                       required
+                      style={{ fontWeight: 800, fontFamily: 'monospace', letterSpacing: '0.04em', color: '#1d4ed8', background: '#f8fafc' }}
                     />
+                    <span style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '3px', display: 'block' }}>
+                      ⚡ Auto-incremented for <strong>{orderForm.from_station}</strong> ({orderForm.booking_date})
+                    </span>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Booking Date *</label>
@@ -927,7 +1641,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                       type="date"
                       className="form-control"
                       value={orderForm.booking_date}
-                      onChange={(e) => setOrderForm({ ...orderForm, booking_date: e.target.value })}
+                      onChange={(e) => handleStationOrDateChange(orderForm.from_station, e.target.value)}
                       required
                     />
                   </div>
@@ -946,7 +1660,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Sender Phone (10 Digits)</label>
+                    <label className="form-label">Sender Phone</label>
                     <input
                       type="tel"
                       className="form-control"
@@ -971,7 +1685,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Receiver Phone (10 Digits)</label>
+                    <label className="form-label">Receiver Phone</label>
                     <input
                       type="tel"
                       className="form-control"
@@ -989,7 +1703,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                     <select
                       className="form-control"
                       value={orderForm.from_station}
-                      onChange={(e) => setOrderForm({ ...orderForm, from_station: e.target.value })}
+                      onChange={(e) => handleStationOrDateChange(e.target.value, orderForm.booking_date)}
                     >
                       {branches.map(b => <option key={b.id} value={b.name}>{b.name} ({b.code})</option>)}
                     </select>
@@ -1006,37 +1720,151 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div className="form-grid-custom-1-1-2">
+                {/* Goods, Pieces, & Rate Calculation */}
+                <div className="form-grid-3">
                   <div className="form-group">
-                    <label className="form-label">Pieces (PCS)</label>
+                    <label className="form-label">Pieces *</label>
                     <input
                       type="number"
                       min="1"
                       className="form-control"
                       value={orderForm.pieces}
-                      onChange={(e) => setOrderForm({ ...orderForm, pieces: e.target.value })}
+                      onChange={(e) => handlePiecesChange(e.target.value)}
                       required
+                      style={{ fontWeight: 800, fontSize: '1rem', color: '#1e293b' }}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Weight (KG)</label>
+                    <label className="form-label">Rate / Piece (₹) *</label>
                     <input
                       type="number"
-                      step="0.1"
+                      min="0"
+                      step="1"
                       className="form-control"
-                      value={orderForm.weight_kg}
-                      onChange={(e) => setOrderForm({ ...orderForm, weight_kg: e.target.value })}
+                      placeholder="e.g. 100"
+                      value={orderForm.rate_per_piece}
+                      onChange={(e) => handleRateChange(e.target.value)}
+                      style={{ fontWeight: 800, fontSize: '1rem', color: '#047857' }}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Description of Goods</label>
+                    <label className="form-label">Description</label>
                     <input
                       type="text"
                       className="form-control"
                       value={orderForm.description}
                       onChange={(e) => setOrderForm({ ...orderForm, description: e.target.value })}
+                      placeholder="e.g. Textiles / Goods"
                     />
                   </div>
+                </div>
+
+                {/* Weight & Individual Box Weights & Amounts Section */}
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: 700, fontSize: '0.875rem', color: '#1e293b' }}>
+                      <input
+                        type="checkbox"
+                        checked={orderForm.has_separate_boxes}
+                        onChange={(e) => handleToggleSeparateBoxes(e.target.checked)}
+                      />
+                      <span>📦 Individual Boxes ({orderForm.pieces} {orderForm.pieces === 1 ? 'Box' : 'Boxes'})</span>
+                    </label>
+
+                    {orderForm.has_separate_boxes ? (
+                      <button
+                        type="button"
+                        onClick={handleAddBox}
+                        className="btn btn-outline btn-xs"
+                        style={{ padding: '3px 8px', fontSize: '0.75rem', gap: '4px', background: '#fff', borderColor: '#cbd5e1' }}
+                      >
+                        <Plus size={12} />
+                        <span>Add Box</span>
+                      </button>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Total Weight:</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          className="form-control"
+                          style={{ width: '90px', padding: '4px 8px', height: '32px', textAlign: 'right', fontWeight: 700 }}
+                          value={orderForm.weight_kg}
+                          onChange={(e) => setOrderForm({ ...orderForm, weight_kg: e.target.value })}
+                        />
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>KG</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {orderForm.has_separate_boxes && (
+                    <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '10px', maxHeight: '190px', overflowY: 'auto', padding: '2px' }}>
+                        {(orderForm.box_items || []).map((box, idx) => (
+                          <div key={idx} style={{ background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px 10px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1e293b' }}>
+                                📦 #{idx + 1}
+                              </span>
+                              {(orderForm.box_items || []).length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveBox(idx)}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px 4px', display: 'flex', alignItems: 'center' }}
+                                  title="Remove box"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '2px 6px' }}>
+                                <span style={{ fontSize: '0.8rem', color: '#64748b', marginRight: '4px' }} title="Weight (kg)">⚖️</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  placeholder="0.0"
+                                  className="form-control"
+                                  style={{ border: 'none', background: 'transparent', padding: '2px 0', height: '28px', fontSize: '0.85rem', textAlign: 'right', fontWeight: 700 }}
+                                  value={box.weight}
+                                  onChange={(e) => handleBoxWeightChange(idx, e.target.value)}
+                                />
+                                <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '3px', fontWeight: 600 }}>kg</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '2px 6px' }}>
+                                <span style={{ fontSize: '0.85rem', color: '#047857', fontWeight: 800, marginRight: '4px' }} title="Amount (₹)">₹</span>
+                                <input
+                                  type="number"
+                                  step="1"
+                                  min="0"
+                                  placeholder="0"
+                                  className="form-control"
+                                  style={{ border: 'none', background: 'transparent', padding: '2px 0', height: '28px', fontSize: '0.85rem', textAlign: 'right', fontWeight: 700, color: '#047857' }}
+                                  value={box.amount}
+                                  onChange={(e) => handleBoxAmountChange(idx, e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1', fontSize: '0.825rem' }}>
+                        <span style={{ color: '#64748b', fontSize: '0.785rem' }}>
+                          <strong>{orderForm.box_items?.length || 0}</strong> boxes
+                        </span>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 800, color: '#0f172a', background: '#e2e8f0', padding: '3px 10px', borderRadius: '4px' }}>
+                            📦 Total: {orderForm.weight_kg || 0} kg
+                          </span>
+                          <span style={{ fontWeight: 800, color: '#047857', background: '#dcfce7', border: '1px solid #86efac', padding: '3px 10px', borderRadius: '4px' }}>
+                            💰 Freight: ₹{orderForm.freight_amount || 0}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-grid-3">
@@ -1080,14 +1908,22 @@ const OrdersView = ({ defaultOpenNew = false }) => {
 
                 <div className="form-grid-3">
                   <div className="form-group">
-                    <label className="form-label">Freight Amount (₹)</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label className="form-label" style={{ margin: 0 }}>Freight (₹) *</label>
+                      {parseFloat(orderForm.rate_per_piece) > 0 && (
+                        <span style={{ fontSize: '0.7rem', color: '#047857', fontWeight: 700 }}>
+                          ({orderForm.pieces} × ₹{orderForm.rate_per_piece})
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="number"
                       min="0"
                       className="form-control"
                       value={orderForm.freight_amount}
-                      onChange={(e) => setOrderForm({ ...orderForm, freight_amount: e.target.value })}
+                      onChange={(e) => handleFreightAmountChange(e.target.value)}
                       required
+                      style={{ fontWeight: 700 }}
                     />
                   </div>
                   <div className="form-group">
@@ -1102,28 +1938,61 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Total Freight</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={`₹${calculatedTotal.toFixed(2)}`}
-                      disabled
-                      style={{ fontWeight: 'bold', background: '#f8fafc' }}
-                    />
+                    <div style={{
+                      background: '#f0fdf4',
+                      border: '1.5px solid #86efac',
+                      borderRadius: '6px',
+                      padding: '6px 12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      minHeight: '40px'
+                    }}>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#15803d', lineHeight: 1.1 }}>
+                        ₹{calculatedTotal.toFixed(2)}
+                      </div>
+                      <span style={{ fontSize: '0.675rem', color: '#166534', marginTop: '2px' }}>
+                        ₹{parseFloat(orderForm.freight_amount) || 0} + ₹{parseFloat(orderForm.other_charges) || 0} charges
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Assign Driver / Vehicle</label>
-                  <select
-                    className="form-control"
-                    value={orderForm.driver_id}
-                    onChange={(e) => setOrderForm({ ...orderForm, driver_id: e.target.value })}
-                  >
-                    <option value="">-- Select Assigned Driver --</option>
-                    {drivers.map(d => (
-                      <option key={d.id} value={d.id}>{d.name} ({d.vehicle_no})</option>
-                    ))}
-                  </select>
+                <div className="form-grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Assign Vehicle</label>
+                    <select
+                      className="form-control"
+                      value={orderForm.vehicle_id || ''}
+                      onChange={(e) => handleSelectVehicle(e.target.value)}
+                    >
+                      <option value="">-- Select Vehicle --</option>
+                      {vehicles.map(v => (
+                        <option key={v.id} value={v.id}>
+                          {v.vehicle_no} — {v.vehicle_type} ({v.capacity || 'Active'})
+                        </option>
+                      ))}
+                    </select>
+                    {orderForm.vehicle_no && (
+                      <span style={{ fontSize: '0.725rem', color: '#059669', marginTop: '3px', display: 'block', fontWeight: 600 }}>
+                        ✓ Selected Vehicle: {orderForm.vehicle_no}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Assign Driver</label>
+                    <select
+                      className="form-control"
+                      value={orderForm.driver_id || ''}
+                      onChange={(e) => setOrderForm({ ...orderForm, driver_id: e.target.value })}
+                    >
+                      <option value="">-- Select Driver --</option>
+                      {drivers.map(d => (
+                        <option key={d.id} value={d.id}>{d.name} ({d.vehicle_no})</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="form-group">
@@ -1156,7 +2025,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       {/* ============================================================= */}
       {isEditOrderOpen && (
         <div className="modal-overlay" onClick={() => setIsEditOrderOpen(false)}>
-          <div className="modal-box" style={{ maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-box" style={{ maxWidth: 960, width: 'min(96vw, 960px)' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Edit size={20} color="#0284c7" />
@@ -1206,7 +2075,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Sender Phone (10 Digits)</label>
+                    <label className="form-label">Sender Phone</label>
                     <input
                       type="tel"
                       className="form-control"
@@ -1242,7 +2111,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Receiver Phone (10 Digits)</label>
+                    <label className="form-label">Receiver Phone</label>
                     <input
                       type="tel"
                       className="form-control"
@@ -1288,37 +2157,151 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                <div className="form-grid-custom-1-1-2">
+                {/* Goods, Pieces, & Rate Calculation */}
+                <div className="form-grid-3">
                   <div className="form-group">
-                    <label className="form-label">Pieces (PCS)</label>
+                    <label className="form-label">Pieces *</label>
                     <input
                       type="number"
                       min="1"
                       className="form-control"
                       value={editForm.pieces}
-                      onChange={(e) => setEditForm({ ...editForm, pieces: e.target.value })}
+                      onChange={(e) => handleEditPiecesChange(e.target.value)}
                       required
+                      style={{ fontWeight: 800, fontSize: '1rem', color: '#1e293b' }}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Weight (KG)</label>
+                    <label className="form-label">Rate / Piece (₹) *</label>
                     <input
                       type="number"
-                      step="0.1"
+                      min="0"
+                      step="1"
                       className="form-control"
-                      value={editForm.weight_kg}
-                      onChange={(e) => setEditForm({ ...editForm, weight_kg: e.target.value })}
+                      placeholder="e.g. 100"
+                      value={editForm.rate_per_piece}
+                      onChange={(e) => handleEditRateChange(e.target.value)}
+                      style={{ fontWeight: 800, fontSize: '1rem', color: '#047857' }}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Description of Goods</label>
+                    <label className="form-label">Description</label>
                     <input
                       type="text"
                       className="form-control"
                       value={editForm.description}
                       onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                      placeholder="e.g. Goods"
                     />
                   </div>
+                </div>
+
+                {/* Weight & Individual Box Weights & Amounts Section */}
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: 700, fontSize: '0.875rem', color: '#1e293b' }}>
+                      <input
+                        type="checkbox"
+                        checked={editForm.has_separate_boxes}
+                        onChange={(e) => handleEditToggleSeparateBoxes(e.target.checked)}
+                      />
+                      <span>📦 Individual Boxes ({editForm.pieces} {editForm.pieces === 1 ? 'Box' : 'Boxes'})</span>
+                    </label>
+
+                    {editForm.has_separate_boxes ? (
+                      <button
+                        type="button"
+                        onClick={handleEditAddBox}
+                        className="btn btn-outline btn-xs"
+                        style={{ padding: '3px 8px', fontSize: '0.75rem', gap: '4px', background: '#fff', borderColor: '#cbd5e1' }}
+                      >
+                        <Plus size={12} />
+                        <span>Add Box</span>
+                      </button>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Total Weight:</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          className="form-control"
+                          style={{ width: '90px', padding: '4px 8px', height: '32px', textAlign: 'right', fontWeight: 700 }}
+                          value={editForm.weight_kg}
+                          onChange={(e) => setEditForm({ ...editForm, weight_kg: e.target.value })}
+                        />
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>KG</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {editForm.has_separate_boxes && (
+                    <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '10px', maxHeight: '190px', overflowY: 'auto', padding: '2px' }}>
+                        {(editForm.box_items || []).map((box, idx) => (
+                          <div key={idx} style={{ background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px 10px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1e293b' }}>
+                                📦 #{idx + 1}
+                              </span>
+                              {(editForm.box_items || []).length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditRemoveBox(idx)}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px 4px', display: 'flex', alignItems: 'center' }}
+                                  title="Remove box"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '2px 6px' }}>
+                                <span style={{ fontSize: '0.8rem', color: '#64748b', marginRight: '4px' }} title="Weight (kg)">⚖️</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  placeholder="0.0"
+                                  className="form-control"
+                                  style={{ border: 'none', background: 'transparent', padding: '2px 0', height: '28px', fontSize: '0.85rem', textAlign: 'right', fontWeight: 700 }}
+                                  value={box.weight}
+                                  onChange={(e) => handleEditBoxWeightChange(idx, e.target.value)}
+                                />
+                                <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '3px', fontWeight: 600 }}>kg</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '2px 6px' }}>
+                                <span style={{ fontSize: '0.85rem', color: '#047857', fontWeight: 800, marginRight: '4px' }} title="Amount (₹)">₹</span>
+                                <input
+                                  type="number"
+                                  step="1"
+                                  min="0"
+                                  placeholder="0"
+                                  className="form-control"
+                                  style={{ border: 'none', background: 'transparent', padding: '2px 0', height: '28px', fontSize: '0.85rem', textAlign: 'right', fontWeight: 700, color: '#047857' }}
+                                  value={box.amount}
+                                  onChange={(e) => handleEditBoxAmountChange(idx, e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1', fontSize: '0.825rem' }}>
+                        <span style={{ color: '#64748b', fontSize: '0.785rem' }}>
+                          <strong>{editForm.box_items?.length || 0}</strong> boxes
+                        </span>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 800, color: '#0f172a', background: '#e2e8f0', padding: '3px 10px', borderRadius: '4px' }}>
+                            📦 Total: {editForm.weight_kg || 0} kg
+                          </span>
+                          <span style={{ fontWeight: 800, color: '#047857', background: '#dcfce7', border: '1px solid #86efac', padding: '3px 10px', borderRadius: '4px' }}>
+                            💰 Freight: ₹{editForm.freight_amount || 0}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-grid-3">
@@ -1363,14 +2346,22 @@ const OrdersView = ({ defaultOpenNew = false }) => {
 
                 <div className="form-grid-3">
                   <div className="form-group">
-                    <label className="form-label">Freight Amount (₹)</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label className="form-label" style={{ margin: 0 }}>Freight (₹) *</label>
+                      {parseFloat(editForm.rate_per_piece) > 0 && (
+                        <span style={{ fontSize: '0.7rem', color: '#047857', fontWeight: 700 }}>
+                          ({editForm.pieces} × ₹{editForm.rate_per_piece})
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="number"
                       min="0"
                       className="form-control"
                       value={editForm.freight_amount}
-                      onChange={(e) => setEditForm({ ...editForm, freight_amount: e.target.value })}
+                      onChange={(e) => handleEditFreightAmountChange(e.target.value)}
                       required
+                      style={{ fontWeight: 700 }}
                     />
                   </div>
                   <div className="form-group">
@@ -1385,17 +2376,27 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Total Freight</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={`₹${((parseFloat(editForm.freight_amount) || 0) + (parseFloat(editForm.other_charges) || 0)).toFixed(2)}`}
-                      disabled
-                      style={{ fontWeight: 'bold', background: '#f8fafc' }}
-                    />
+                    <div style={{
+                      background: '#f0fdf4',
+                      border: '1.5px solid #86efac',
+                      borderRadius: '6px',
+                      padding: '6px 12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      minHeight: '40px'
+                    }}>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#15803d', lineHeight: 1.1 }}>
+                        ₹{((parseFloat(editForm.freight_amount) || 0) + (parseFloat(editForm.other_charges) || 0)).toFixed(2)}
+                      </div>
+                      <span style={{ fontSize: '0.675rem', color: '#166534', marginTop: '2px' }}>
+                        ₹{parseFloat(editForm.freight_amount) || 0} + ₹{parseFloat(editForm.other_charges) || 0} charges
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="form-grid-2">
+                <div className="form-grid-3">
                   <div className="form-group">
                     <label className="form-label">Delivery Status</label>
                     <select
@@ -1412,10 +2413,31 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Assign Driver / Vehicle</label>
+                    <label className="form-label">Assign Vehicle</label>
                     <select
                       className="form-control"
-                      value={editForm.driver_id}
+                      value={editForm.vehicle_id || ''}
+                      onChange={(e) => handleSelectEditVehicle(e.target.value)}
+                    >
+                      <option value="">-- Select Vehicle --</option>
+                      {vehicles.map(v => (
+                        <option key={v.id} value={v.id}>
+                          {v.vehicle_no} — {v.vehicle_type} ({v.capacity || 'Active'})
+                        </option>
+                      ))}
+                    </select>
+                    {editForm.vehicle_no && (
+                      <span style={{ fontSize: '0.72rem', color: '#0284c7', marginTop: '3px', display: 'block', fontWeight: 600 }}>
+                        ✓ Vehicle: {editForm.vehicle_no}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Assign Driver</label>
+                    <select
+                      className="form-control"
+                      value={editForm.driver_id || ''}
                       onChange={(e) => setEditForm({ ...editForm, driver_id: e.target.value })}
                     >
                       <option value="">-- Unassigned --</option>
@@ -1476,11 +2498,83 @@ const OrdersView = ({ defaultOpenNew = false }) => {
             </div>
 
             <div className="modal-body">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                 <div style={{ fontWeight: 700, color: 'var(--primary-dark)' }}>
                   {selectedOrder.from_station} ➔ {selectedOrder.to_station}
                 </div>
                 {getStatusBadge(selectedOrder.delivery_status)}
+              </div>
+
+              {(selectedOrder.vehicle_no || selectedOrder.driver_vehicle) && (
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: 34, height: 34, borderRadius: '8px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Truck size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 800, fontFamily: 'monospace', color: '#0f172a' }}>
+                        {selectedOrder.vehicle_no || selectedOrder.driver_vehicle}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                        {selectedOrder.vehicle_type || 'Transport Fleet'} {selectedOrder.driver_name ? `• Driver: ${selectedOrder.driver_name}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  {selectedOrder.driver_phone && (
+                    <a href={`tel:${selectedOrder.driver_phone}`} className="btn btn-outline btn-xs" style={{ gap: '4px', color: '#0284c7', borderColor: '#bae6fd' }}>
+                      <Phone size={12} />
+                      <span>Call Driver</span>
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* Consignment Packages & Pricing Details */}
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.85rem' }}>
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: '0.75rem', display: 'block' }}>Packages & Weight</span>
+                    <strong style={{ color: '#0f172a' }}>{selectedOrder.pieces} Pcs ({selectedOrder.weight_kg} Kg)</strong>
+                    <div style={{ fontSize: '0.75rem', color: '#475569' }}>{selectedOrder.description || 'Goods'}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ color: '#64748b', fontSize: '0.75rem', display: 'block' }}>Freight & Billing</span>
+                    <strong style={{ color: '#15803d', fontSize: '1rem' }}>₹{Number(selectedOrder.total_amount).toLocaleString()}</strong>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      {selectedOrder.payment_mode} • {selectedOrder.payment_status}
+                    </div>
+                  </div>
+                </div>
+
+                {parseFloat(selectedOrder.rate_per_piece) > 0 && (
+                  <div style={{ fontSize: '0.725rem', color: '#047857', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0' }}>
+                    Rate: ₹{selectedOrder.rate_per_piece}/pc × {selectedOrder.pieces} pcs = ₹{selectedOrder.freight_amount} {parseFloat(selectedOrder.other_charges) > 0 ? `+ ₹${selectedOrder.other_charges} other charges` : ''}
+                  </div>
+                )}
+
+                {selectedOrder.box_details && (() => {
+                  try {
+                    const boxes = typeof selectedOrder.box_details === 'string' ? JSON.parse(selectedOrder.box_details) : selectedOrder.box_details;
+                    if (Array.isArray(boxes) && boxes.length > 0) {
+                      return (
+                        <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0' }}>
+                          <span style={{ fontSize: '0.725rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                            Individual Box Details ({boxes.length} boxes):
+                          </span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            {boxes.map((b, i) => (
+                              <span key={i} style={{ fontSize: '0.725rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '4px', padding: '3px 8px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <span>Box #{i + 1}: {b.weight} kg</span>
+                                {parseFloat(b.amount) > 0 && <span style={{ color: '#047857', background: '#dcfce7', padding: '1px 5px', borderRadius: '3px', fontWeight: 700 }}>₹{b.amount}</span>}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                  } catch (e) {}
+                  return null;
+                })()}
               </div>
 
               {/* Add Checkpoint Button or Form */}
@@ -1550,15 +2644,20 @@ const OrdersView = ({ defaultOpenNew = false }) => {
         title={successModalData?.title || 'Success'}
         message={successModalData?.message || 'Action completed successfully.'}
         details={successModalData?.details}
-        primaryButtonText={successModalData?.orderToPrint ? 'Print Order LR' : 'OK'}
+        primaryButtonText={successModalData?.orderToPrint ? 'Print A4 Bill' : 'OK'}
         onPrimaryClick={() => {
           if (successModalData?.orderToPrint) {
             handlePrintLR(successModalData.orderToPrint);
           }
           setSuccessModalData(null);
         }}
-        secondaryButtonText={successModalData?.orderToPrint ? 'Done' : null}
-        onSecondaryClick={() => setSuccessModalData(null)}
+        secondaryButtonText={successModalData?.orderToPrint ? 'Bluetooth Slip 📱' : null}
+        onSecondaryClick={() => {
+          if (successModalData?.orderToPrint) {
+            handlePrintThermalReceipt(successModalData.orderToPrint);
+          }
+          setSuccessModalData(null);
+        }}
       />
     </div>
   );

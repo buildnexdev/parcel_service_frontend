@@ -69,8 +69,16 @@ export const api = {
   updateDriver: (id, data) => apiClient.put(`/drivers/${id}`, data),
   deleteDriver: (id) => apiClient.delete(`/drivers/${id}`),
 
+  // Vehicles / Fleet
+  getVehicles: (params = {}) => apiClient.get('/vehicles', { params }),
+  getVehicleById: (id) => apiClient.get(`/vehicles/${id}`),
+  createVehicle: (data) => apiClient.post('/vehicles', data),
+  updateVehicle: (id, data) => apiClient.put(`/vehicles/${id}`, data),
+  deleteVehicle: (id) => apiClient.delete(`/vehicles/${id}`),
+
   // Orders
   getOrders: (params = {}) => apiClient.get('/orders', { params }),
+  getNextWaybillNumber: (params = {}) => apiClient.get('/orders/next-waybill', { params }),
   getOrderById: (id) => apiClient.get(`/orders/${id}`),
   createOrder: (data) => apiClient.post('/orders', data),
   updateOrder: (id, data) => apiClient.put(`/orders/${id}`, data),

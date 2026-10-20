@@ -5,6 +5,7 @@ import LoginModal from './components/LoginModal';
 import PortalLayout from './components/Portal/PortalLayout';
 import DashboardView from './components/Portal/DashboardView';
 import OrdersView from './components/Portal/OrdersView';
+import VehiclesView from './components/Portal/VehiclesView';
 import DriversView from './components/Portal/DriversView';
 import ReportsView from './components/Portal/ReportsView';
 import ProfileView from './components/Portal/ProfileView';
@@ -60,6 +61,10 @@ function AppContent() {
 
           {portalTab === 'orders' && (
             <OrdersView key={newOrderTrigger} defaultOpenNew={newOrderTrigger > 0} />
+          )}
+
+          {portalTab === 'vehicles' && (
+            <VehiclesView />
           )}
 
           {portalTab === 'drivers' && (

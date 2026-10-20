@@ -219,7 +219,7 @@ const DriversView = () => {
       {/* Driver Add/Edit Modal */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-box" style={{ maxWidth: 760, width: 'min(95vw, 760px)' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{editingDriver ? 'Edit Driver Details' : 'Add Assigned Driver'}</h3>
               <button className="modal-close" onClick={() => setIsModalOpen(false)}>
@@ -242,7 +242,7 @@ const DriversView = () => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Phone Number (10 Digits) *</label>
+                  <label className="form-label">Phone Number *</label>
                   <input
                     type="tel"
                     className="form-control"
@@ -255,7 +255,7 @@ const DriversView = () => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Vehicle Registration Number *</label>
+                  <label className="form-label">Vehicle Number *</label>
                   <input
                     type="text"
                     className="form-control"

@@ -305,7 +305,7 @@ a {
   margin-bottom: 24px;
 }
 .table-header {
-  padding: 16px 22px;
+  padding: 12px 18px;
   border-bottom: 1px solid #f1f5f9;
   background: #ffffff;
   display: flex;
@@ -325,7 +325,7 @@ table.data-table {
 }
 table.data-table th {
   background: #f8fafc;
-  padding: 12px 18px;
+  padding: 10px 14px;
   font-size: 0.725rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -335,7 +335,7 @@ table.data-table th {
   white-space: nowrap;
 }
 table.data-table td {
-  padding: 14px 18px;
+  padding: 12px 14px;
   font-size: 0.885rem;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
@@ -363,12 +363,15 @@ table.data-table tr:hover td {
 .modal-box {
   background: #ffffff;
   border-radius: var(--radius-xl);
-  width: min(calc(100vw - 32px), 520px);
-  max-width: 520px;
+  width: min(calc(100vw - 32px), 760px);
+  max-width: 760px;
   box-shadow: var(--shadow-xl);
   overflow: hidden;
   position: relative;
   margin: auto;
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
   animation: modalEnter 0.22s ease-out;
 }
 @keyframes modalEnter {
@@ -376,16 +379,18 @@ table.data-table tr:hover td {
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 .modal-header {
-  padding: 18px 22px;
+  padding: 18px 26px;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 .modal-header h3 {
   color: #ffffff;
-  font-size: 1.2rem;
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 .modal-close {
   background: transparent;
@@ -396,9 +401,10 @@ table.data-table tr:hover td {
   line-height: 1;
 }
 .modal-body {
-  padding: 22px;
-  max-height: 80vh;
+  padding: 24px 28px;
+  max-height: calc(92vh - 68px);
   overflow-y: auto;
+  flex: 1;
 }
 
 @media (max-width: 640px) {
@@ -437,17 +443,19 @@ table.data-table tr:hover td {
 }
 
 .portal-sidebar {
-  width: 260px;
-  min-width: 260px;
-  max-width: 260px;
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
   background: #0f172a;
   color: #cbd5e1;
   display: flex;
   flex-direction: column;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  bottom: 0;
   height: 100vh;
-  z-index: 50;
+  z-index: 100;
   border-right: 1px solid rgba(255, 255, 255, 0.07);
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.06);
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -472,6 +480,7 @@ table.data-table tr:hover td {
 .portal-main {
   flex: 1;
   min-width: 0;
+  margin-left: 240px;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -479,10 +488,10 @@ table.data-table tr:hover td {
 }
 
 .portal-header {
-  height: 72px;
+  height: 64px;
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
-  padding: 0 32px;
+  padding: 0 14px 0 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -493,7 +502,7 @@ table.data-table tr:hover td {
 }
 
 .portal-content {
-  padding: 28px 32px;
+  padding: 14px 14px 28px 10px;
   flex: 1;
 }
 
@@ -815,5 +824,147 @@ table.data-table tr:hover td {
   }
   to {
     opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   Print Styles (Clean Orders Table Only, No Filters, No Navigation)
+   ========================================================================== */
+@media screen {
+  .print-only,
+  .print-signatures {
+    display: none !important;
+  }
+}
+
+@media print {
+  /* Hide sidebar, top navigation, search bars, filter cards, action buttons, modals */
+  .portal-sidebar,
+  .portal-header,
+  .portal-backdrop,
+  .modal-overlay,
+  .no-print,
+  button,
+  .btn {
+    display: none !important;
+  }
+
+  /* Reset layout so main content prints cleanly edge-to-edge */
+  html, body, #root, .portal-container, .portal-main, .portal-content {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Remove card borders/shadows on paper */
+  .table-card {
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  .table-responsive {
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  /* Print table formatting */
+  table.data-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 9pt !important;
+    color: #000000 !important;
+    margin-top: 8px !important;
+  }
+
+  table.data-table th,
+  table.data-table td {
+    border: 1px solid #333333 !important;
+    padding: 6px 8px !important;
+    color: #000000 !important;
+    font-size: 9pt !important;
+    background: transparent !important;
+  }
+
+  table.data-table th {
+    background: #f1f5f9 !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  table.data-table tr {
+    page-break-inside: avoid !important;
+  }
+
+  .badge {
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    color: #000000 !important;
+    font-size: 8.5pt !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    font-weight: 600 !important;
+  }
+
+  /* Show dedicated print-only elements */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Official signature block alignment across 100% width */
+  table.print-signatures {
+    display: table !important;
+    width: 100% !important;
+    border: none !important;
+    border-collapse: collapse !important;
+    margin-top: 55px !important;
+    margin-bottom: 20px !important;
+    page-break-inside: avoid !important;
+    background: transparent !important;
+  }
+
+  table.print-signatures td {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    vertical-align: top !important;
+  }
+
+  table.print-signatures td.sig-cell {
+    border-top: 1.5px solid #000000 !important;
+    padding-top: 8px !important;
+    font-size: 9pt !important;
+    font-weight: 800 !important;
+    text-align: center !important;
+    color: #000000 !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  /* Special case: when printing a single LR receipt */
+  body.printing-order-lr * {
+    visibility: hidden !important;
+  }
+  body.printing-order-lr #printableOrderArea,
+  body.printing-order-lr #printableOrderArea * {
+    visibility: visible !important;
+  }
+  body.printing-order-lr #printableOrderArea {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    display: block !important;
   }
 }
