@@ -63,6 +63,14 @@ export const api = {
   getCompanyInfo: () => apiClient.get('/public/company'),
   submitInquiry: (data) => apiClient.post('/public/inquiry', data),
 
+  // Staff & Team
+  getStaff: (params = {}) => apiClient.get('/staff', { params }),
+  getStaffById: (id) => apiClient.get(`/staff/${id}`),
+  createStaff: (data) => apiClient.post('/staff', data),
+  updateStaff: (id, data) => apiClient.put(`/staff/${id}`, data),
+  deleteStaff: (id) => apiClient.delete(`/staff/${id}`),
+  resetStaffPassword: (id, newPassword) => apiClient.put(`/staff/${id}/reset-password`, { newPassword }),
+
   // Drivers
   getDrivers: (params = {}) => apiClient.get('/drivers', { params }),
   createDriver: (data) => apiClient.post('/drivers', data),

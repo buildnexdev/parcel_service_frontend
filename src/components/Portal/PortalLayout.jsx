@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { LayoutDashboard, Package, Truck, Users, FileBarChart, User, LogOut, Globe, Plus, AlertTriangle, X, Menu } from 'lucide-react';
+import { LayoutDashboard, Package, Truck, Users, UserCheck, FileBarChart, User, LogOut, Globe, Plus, AlertTriangle, X, Menu } from 'lucide-react';
 
 const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenNewOrder }) => {
   const { user, logout } = useAuth();
@@ -12,6 +12,7 @@ const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenN
     { id: 'orders', label: 'Orders & Tracking', icon: Package },
     { id: 'vehicles', label: 'Vehicles', icon: Truck },
     { id: 'drivers', label: 'Assigned Drivers', icon: Users },
+    ...(user?.role === 'admin' ? [{ id: 'staff', label: 'Staff & Team', icon: UserCheck }] : []),
     { id: 'reports', label: 'Daily Reports', icon: FileBarChart },
     { id: 'profile', label: 'Profile & Password', icon: User }
   ];
@@ -139,7 +140,7 @@ const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenN
             </button>
 
             <h2 style={{ fontSize: 'clamp(1.05rem, 2.5vw, 1.35rem)', color: 'var(--text-main)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {activeTab === 'dashboard' ? 'Dashboard Overview' : (activeTab === 'orders' ? 'Orders & Tracking' : (activeTab === 'vehicles' ? 'Vehicles Directory' : (activeTab === 'drivers' ? 'Assigned Drivers' : (activeTab === 'reports' ? 'Daily Reports' : 'Staff Profile'))))}
+              {activeTab === 'dashboard' ? 'Dashboard Overview' : (activeTab === 'orders' ? 'Orders & Tracking' : (activeTab === 'vehicles' ? 'Vehicles Directory' : (activeTab === 'drivers' ? 'Assigned Drivers' : (activeTab === 'staff' ? 'Staff & Team Directory' : (activeTab === 'reports' ? 'Daily Reports' : 'Staff Profile')))))}
             </h2>
           </div>
 

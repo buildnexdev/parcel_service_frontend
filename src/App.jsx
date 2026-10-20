@@ -7,6 +7,7 @@ import DashboardView from './components/Portal/DashboardView';
 import OrdersView from './components/Portal/OrdersView';
 import VehiclesView from './components/Portal/VehiclesView';
 import DriversView from './components/Portal/DriversView';
+import StaffView from './components/Portal/StaffView';
 import ReportsView from './components/Portal/ReportsView';
 import ProfileView from './components/Portal/ProfileView';
 
@@ -69,6 +70,10 @@ function AppContent() {
 
           {portalTab === 'drivers' && (
             <DriversView />
+          )}
+
+          {portalTab === 'staff' && (
+            <StaffView />
           )}
 
           {portalTab === 'reports' && (

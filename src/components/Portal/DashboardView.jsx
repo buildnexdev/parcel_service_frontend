@@ -126,6 +126,9 @@ const DashboardView = ({ onNavigate }) => {
         <button className="btn btn-outline" onClick={() => onNavigate('drivers', { openAddModal: true })}>
           🚚 Add Assigned Driver
         </button>
+        <button className="btn btn-outline" onClick={() => onNavigate('staff')}>
+          👥 Staff & Team
+        </button>
         <button className="btn btn-outline" onClick={() => onNavigate('reports')}>
           📊 View Daily Reports
         </button>
