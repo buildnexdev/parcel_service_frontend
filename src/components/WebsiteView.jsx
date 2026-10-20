@@ -137,12 +137,12 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
           </div>
 
           {/* Desktop Nav */}
-          <nav className="desktop-only" style={{ gap: '24px' }}>
-            <a href="#home" style={{ color: 'var(--text-main)', fontWeight: 600 }}>Home</a>
-            <a href="#track" style={{ color: 'var(--text-main)', fontWeight: 600 }}>Track Parcel</a>
-            <a href="#branches" style={{ color: 'var(--text-main)', fontWeight: 600 }}>12 Branches</a>
-            <a href="#credentials" style={{ color: 'var(--text-main)', fontWeight: 600 }}>Company & GST</a>
-            <a href="#contact" style={{ color: 'var(--text-main)', fontWeight: 600 }}>Contact</a>
+          <nav className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
+            <a href="#home" style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '0.925rem' }}>Home</a>
+            <a href="#track" style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '0.925rem' }}>Track Parcel</a>
+            <a href="#branches" style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '0.925rem' }}>12 Hubs & Routes</a>
+            <a href="#credentials" style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '0.925rem' }}>Company & GST</a>
+            <a href="#contact" style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '0.925rem' }}>Contact</a>
           </nav>
 
           <button onClick={isAuthenticated ? onGoToPortal : onOpenLogin} className="btn btn-accent desktop-only">
@@ -340,32 +340,95 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '20px' }}>
-            {branches.map(b => (
-              <div
-                key={b.id}
-                style={{
-                  background: 'var(--bg-surface)',
-                  border: b.is_head_office ? '2px solid var(--secondary)' : '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '24px',
-                  boxShadow: 'var(--shadow-sm)'
-                }}
-              >
-                <div style={{ width: 40, height: 40, background: 'var(--bg-surface-alt)', color: 'var(--primary)', fontWeight: 800, borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
-                  {b.code}
+            {branches.map(b => {
+              const isHQ = b.is_head_office || b.name === 'Karaikal';
+              const isBranch = b.is_branch_office || b.name === 'Pondicherry';
+              const hasOfficeDetails = isHQ || isBranch;
+
+              return (
+                <div
+                  key={b.id || b.name}
+                  style={{
+                    background: '#ffffff',
+                    border: isHQ ? '2px solid #2563eb' : (isBranch ? '2px solid #0284c7' : '1px solid #e2e8f0'),
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '24px',
+                    boxShadow: isHQ || isBranch ? '0 10px 25px -5px rgba(37, 99, 235, 0.12)' : 'var(--shadow-sm)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                      <div style={{
+                        width: 42,
+                        height: 42,
+                        background: isHQ ? '#eff6ff' : (isBranch ? '#f0f9ff' : '#f8fafc'),
+                        color: isHQ ? '#1d4ed8' : (isBranch ? '#0284c7' : '#475569'),
+                        fontWeight: 800,
+                        borderRadius: 'var(--radius-md)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.95rem',
+                        border: isHQ ? '1px solid #bfdbfe' : (isBranch ? '1px solid #bae6fd' : '1px solid #e2e8f0')
+                      }}>
+                        {b.code}
+                      </div>
+
+                      {isHQ ? (
+                        <span className="badge badge-paid" style={{ fontSize: '0.7rem', padding: '3px 8px' }}>
+                          HEAD OFFICE
+                        </span>
+                      ) : isBranch ? (
+                        <span className="badge badge-active" style={{ fontSize: '0.7rem', padding: '3px 8px', background: '#e0f2fe', color: '#0369a1' }}>
+                          BRANCH OFFICE
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>
+                          ROUTE STATION
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 style={{ fontSize: '1.25rem', marginBottom: '8px', color: 'var(--primary-dark)', fontWeight: 800 }}>
+                      {b.name}
+                    </h4>
+
+                    {hasOfficeDetails ? (
+                      <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '16px', lineHeight: 1.5, minHeight: 44 }}>
+                        {b.address || (isHQ ? 'No.18, Sastha Nagar, Karaikal (Reg: 32, Church St)' : 'No.9, Throwpathi Amman Kovil Street, Arumathapuram, Puducherry')}
+                      </p>
+                    ) : (
+                      <div style={{ marginBottom: '16px', minHeight: 44 }}>
+                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: 4 }}>
+                          Daily Scheduled Cargo & Delivery Route
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f0f9ff', padding: '2px 8px', borderRadius: '4px' }}>
+                          ✓ Regular Scheduled Service
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {hasOfficeDetails ? (
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: 6, paddingTop: 12, borderTop: '1px solid #f1f5f9' }}>
+                      <Phone size={14} style={{ color: '#2563eb', flexShrink: 0 }} />
+                      <a href={`tel:${(b.phone || (isHQ ? '9360427527' : '+919442485296')).split('/')[0].trim()}`} style={{ color: '#1d4ed8' }}>
+                        {b.phone || (isHQ ? '93604 27527 / 96555 66060' : '+91 94424 85296')}
+                      </a>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 6, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
+                      <Truck size={14} style={{ color: '#64748b', flexShrink: 0 }} />
+                      <span>Karaikal ⇄ Pondicherry Corridor</span>
+                    </div>
+                  )}
                 </div>
-                <h4 style={{ fontSize: '1.25rem', marginBottom: '6px', color: 'var(--primary-dark)' }}>
-                  {b.name} {b.is_head_office && <span className="badge badge-topay" style={{ fontSize: '0.65rem' }}>HEAD OFFICE</span>}
-                </h4>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '14px', minHeight: 45 }}>
-                  {b.address || 'Town / Junction Hub'}
-                </p>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Phone size={14} />
-                  <a href={`tel:${b.phone.split('/')[0].trim()}`}>{b.phone}</a>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
