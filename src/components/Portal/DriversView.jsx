@@ -152,7 +152,7 @@ const DriversView = () => {
             <thead>
               <tr>
                 <th>Driver Name & DL</th>
-                <th>Vehicle Registration</th>
+                <th style={{ minWidth: '180px', whiteSpace: 'nowrap' }}>Vehicle Registration</th>
                 <th>Phone Number</th>
                 <th>Assigned Route</th>
                 <th>Duty Status</th>
@@ -180,8 +180,8 @@ const DriversView = () => {
                         <div style={{ fontWeight: 700, color: 'var(--primary-dark)', fontSize: '0.95rem' }}>{d.name}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>DL: {d.license_no || 'N/A'}</div>
                       </td>
-                      <td>
-                        <span style={{ fontFamily: 'monospace', fontWeight: 700, background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                      <td style={{ whiteSpace: 'nowrap', minWidth: '180px' }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700, background: '#f1f5f9', padding: '5px 10px', borderRadius: '4px', border: '1px solid var(--border-color)', whiteSpace: 'nowrap', display: 'inline-block' }}>
                           {d.vehicle_no}
                         </span>
                       </td>

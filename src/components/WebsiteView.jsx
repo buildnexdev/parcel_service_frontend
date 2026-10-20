@@ -106,8 +106,8 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
             <span className="desktop-only">📋 <strong>GSTIN:</strong> 34BJCPM0785J1Z3</span>
           </div>
           <div className="flex items-center gap-3" style={{ flexWrap: 'wrap' }}>
-            <a href="tel:9442485296" style={{ color: '#cbd5e1' }}>📞 94424 85296</a>
-            <a href="tel:9360427527" style={{ color: '#cbd5e1' }} className="desktop-only">93604 27527</a>
+            <a href="tel:9360427527" style={{ color: '#cbd5e1' }}>📍 <strong>Karaikal:</strong> 93604 27527</a>
+            <a href="tel:+919442485296" style={{ color: '#cbd5e1' }} className="desktop-only">🏢 <strong>Pondicherry:</strong> +91 94424 85296</a>
             {isAuthenticated ? (
               <button onClick={onGoToPortal} className="btn btn-xs btn-accent" style={{ padding: '4px 10px' }}>
                 Open Portal ➔
@@ -421,7 +421,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
                 <strong>Hub Address:</strong> No. 9, Throwpathi Amman Kovil Street, Arumathapuram, Puducherry - 605 110
               </p>
               <div style={{ fontSize: '0.925rem', lineHeight: 1.8 }}>
-                <div>📞 <strong>Phone:</strong> <a href="tel:9442485296">94424 85296</a> / <a href="tel:9360427527">93604 27527</a></div>
+                <div>📞 <strong>Phone:</strong> <a href="tel:+919442485296">+91 94424 85296</a></div>
                 <div>🚚 <strong>Regular Scheduled Dispatch:</strong> Daily Morning & Evening</div>
               </div>
             </div>
@@ -442,14 +442,15 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: '#fef3c7', color: '#b45309', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: '#fef3c7', color: '#b45309', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
                   <Phone size={20} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700 }}>DIRECT HOTLINES</div>
-                  <div style={{ fontWeight: 700, color: 'var(--primary-dark)', wordBreak: 'break-word' }}>
-                    <a href="tel:9442485296">94424 85296</a> / <a href="tel:9360427527">93604 27527</a> / <a href="tel:9655566060">96555 66060</a>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700 }}>DIRECT STATION HOTLINES</div>
+                  <div style={{ fontWeight: 700, color: 'var(--primary-dark)', wordBreak: 'break-word', display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
+                    <div>📍 <strong>Karaikal (HQ):</strong> <a href="tel:9360427527">93604 27527</a> / <a href="tel:9655566060">96555 66060</a></div>
+                    <div>🏢 <strong>Pondicherry:</strong> <a href="tel:+919442485296">+91 94424 85296</a></div>
                   </div>
                 </div>
               </div>
@@ -576,9 +577,10 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
 
           <div>
             <h4 style={{ color: '#fff', marginBottom: '14px' }}>Station Inquiries</h4>
-            <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}><strong>Karaikal:</strong> 32, Church St / Sastha Nagar</p>
-            <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: 4 }}><strong>Pondicherry:</strong> No. 9, Throwpathi Amman Kovil St</p>
-            <p style={{ fontSize: '0.875rem', color: '#fbd38d', marginTop: 8, fontWeight: 'bold' }}>📞 94424 85296 / 93604 27527</p>
+            <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}><strong>Karaikal (HQ):</strong> 32, Church St / Sastha Nagar</p>
+            <p style={{ fontSize: '0.85rem', color: '#fbd38d', marginTop: 2, fontWeight: 600 }}>📞 <a href="tel:9360427527" style={{ color: '#fbd38d' }}>93604 27527</a> / <a href="tel:9655566060" style={{ color: '#fbd38d' }}>96555 66060</a></p>
+            <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: 8 }}><strong>Pondicherry Hub:</strong> No. 9, Throwpathi Amman Kovil St</p>
+            <p style={{ fontSize: '0.875rem', color: '#fbd38d', marginTop: 2, fontWeight: 'bold' }}>📞 <a href="tel:+919442485296" style={{ color: '#fbd38d' }}>+91 94424 85296</a></p>
           </div>
         </div>
 

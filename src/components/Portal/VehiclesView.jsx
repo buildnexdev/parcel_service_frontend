@@ -379,7 +379,7 @@ const VehiclesView = () => {
           <table className="data-table">
             <thead>
               <tr>
-                <th style={{ width: '160px' }}>Vehicle Plate</th>
+                <th style={{ minWidth: '220px', width: '220px', whiteSpace: 'nowrap' }}>Vehicle Plate</th>
                 <th>Vehicle Type & Model</th>
                 <th>Capacity</th>
                 <th>Assigned Route</th>
@@ -406,24 +406,26 @@ const VehiclesView = () => {
               ) : (
                 vehicles.map(v => (
                   <tr key={v.id}>
-                    <td>
+                    <td style={{ whiteSpace: 'nowrap', minWidth: '220px' }}>
                       <div style={{
                         fontFamily: 'monospace',
                         fontWeight: 800,
-                        fontSize: '0.925rem',
+                        fontSize: '0.95rem',
                         color: '#0f172a',
                         background: '#ffffff',
                         border: '1.5px solid #0f172a',
                         borderRadius: '6px',
-                        padding: '4px 10px',
+                        padding: '5px 12px',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 6,
+                        gap: 8,
                         boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                        letterSpacing: '0.04em'
+                        letterSpacing: '0.04em',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
                       }}>
-                        <span style={{ fontSize: '0.65rem', background: '#0f172a', color: '#fff', padding: '1px 3px', borderRadius: '2px', fontWeight: 700 }}>IND</span>
-                        <span>{v.vehicle_no}</span>
+                        <span style={{ fontSize: '0.65rem', background: '#0f172a', color: '#fff', padding: '2px 5px', borderRadius: '2px', fontWeight: 700, flexShrink: 0 }}>IND</span>
+                        <span style={{ whiteSpace: 'nowrap', letterSpacing: '0.05em' }}>{v.vehicle_no}</span>
                       </div>
                     </td>
 
