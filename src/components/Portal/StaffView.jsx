@@ -41,6 +41,8 @@ const BRANCH_LIST = [
 ];
 
 const DESIGNATION_OPTIONS = [
+  'Partner',
+  'Proprietor',
   'Branch Incharge',
   'Staff',
   'Depot Manager',
@@ -654,9 +656,21 @@ const StaffView = () => {
                               fontWeight: 700, 
                               padding: '3px 8px', 
                               borderRadius: '6px',
-                              background: isIncharge ? 'rgba(2, 132, 199, 0.12)' : (staff.designation === 'Administrator' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(100, 116, 139, 0.12)'),
-                              color: isIncharge ? '#0369a1' : (staff.designation === 'Administrator' ? '#4f46e5' : '#475569'),
-                              border: isIncharge ? '1px solid rgba(2, 132, 199, 0.25)' : '1px solid rgba(100, 116, 139, 0.2)'
+                              background: isIncharge 
+                                ? 'rgba(2, 132, 199, 0.12)' 
+                                : (staff.designation === 'Partner' || staff.designation === 'Proprietor'
+                                    ? 'rgba(217, 119, 6, 0.12)'
+                                    : (staff.designation === 'Administrator' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(100, 116, 139, 0.12)')),
+                              color: isIncharge 
+                                ? '#0369a1' 
+                                : (staff.designation === 'Partner' || staff.designation === 'Proprietor'
+                                    ? '#b45309'
+                                    : (staff.designation === 'Administrator' ? '#4f46e5' : '#475569')),
+                              border: isIncharge 
+                                ? '1px solid rgba(2, 132, 199, 0.25)' 
+                                : (staff.designation === 'Partner' || staff.designation === 'Proprietor'
+                                    ? '1px solid rgba(217, 119, 6, 0.3)'
+                                    : (staff.designation === 'Administrator' ? '1px solid rgba(99, 102, 241, 0.25)' : '1px solid rgba(100, 116, 139, 0.2)'))
                             }}
                           >
                             {staff.designation || 'Staff'}

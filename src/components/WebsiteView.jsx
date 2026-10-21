@@ -452,8 +452,9 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
                 <li><strong>Trade Name:</strong> ES TRANSPORTERS</li>
                 <li><strong>Service Name:</strong> IGR QUICK PARCEL SERVICE</li>
                 <li><strong>Proprietor:</strong> MATHAVAN</li>
+                <li><strong>Partner:</strong> K. SELVAGANABATHY</li>
                 <li><strong>GSTIN:</strong> <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>34BJCPM0785J1Z3</span></li>
-                <li><strong>Type:</strong> Regular Proprietorship</li>
+                <li><strong>Type:</strong> Regular Proprietorship / Partnership</li>
                 <li><strong>Registered Place:</strong> 32, Church Street, Karaikal, Puducherry - 609 602</li>
               </ul>
               <div style={{ marginTop: '20px' }}>
@@ -472,7 +473,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
                 <strong>Registered Office:</strong> 32, Church Street, Karaikal - 609 602
               </p>
               <div style={{ fontSize: '0.925rem', lineHeight: 1.8 }}>
-                <div>📞 <strong>Phone:</strong> <a href="tel:9360427527">93604 27527</a> / <a href="tel:9655566060">96555 66060</a></div>
+                <div>📞 <strong>Phone:</strong> <a href="tel:9360427527">93604 27527</a> (Mathavan) / <a href="tel:9655566060">96555 66060</a> (K. Selvaganabathy)</div>
                 <div>⏰ <strong>Working Hours:</strong> Mon - Sat: 8:00 AM - 9:30 PM</div>
               </div>
             </div>
@@ -512,7 +513,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
                 <div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700 }}>DIRECT STATION HOTLINES</div>
                   <div style={{ fontWeight: 700, color: 'var(--primary-dark)', wordBreak: 'break-word', display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
-                    <div>📍 <strong>Karaikal (HQ):</strong> <a href="tel:9360427527">93604 27527</a> / <a href="tel:9655566060">96555 66060</a></div>
+                    <div>📍 <strong>Karaikal (HQ):</strong> <a href="tel:9360427527">93604 27527</a> (Mathavan) / <a href="tel:9655566060">96555 66060</a> (K. Selvaganabathy)</div>
                     <div>🏢 <strong>Pondicherry:</strong> <a href="tel:+919442485296">+91 94424 85296</a></div>
                   </div>
                 </div>
@@ -641,7 +642,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
           <div>
             <h4 style={{ color: '#fff', marginBottom: '14px' }}>Station Inquiries</h4>
             <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}><strong>Karaikal (HQ):</strong> 32, Church St / Sastha Nagar</p>
-            <p style={{ fontSize: '0.85rem', color: '#fbd38d', marginTop: 2, fontWeight: 600 }}>📞 <a href="tel:9360427527" style={{ color: '#fbd38d' }}>93604 27527</a> / <a href="tel:9655566060" style={{ color: '#fbd38d' }}>96555 66060</a></p>
+            <p style={{ fontSize: '0.85rem', color: '#fbd38d', marginTop: 2, fontWeight: 600 }}>📞 <a href="tel:9360427527" style={{ color: '#fbd38d' }}>93604 27527</a> (Mathavan) / <a href="tel:9655566060" style={{ color: '#fbd38d' }}>96555 66060</a> (K. Selvaganabathy)</p>
             <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: 8 }}><strong>Pondicherry Hub:</strong> No. 9, Throwpathi Amman Kovil St</p>
             <p style={{ fontSize: '0.875rem', color: '#fbd38d', marginTop: 2, fontWeight: 'bold' }}>📞 <a href="tel:+919442485296" style={{ color: '#fbd38d' }}>+91 94424 85296</a></p>
           </div>
@@ -649,7 +650,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
 
         <div className="container" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '20px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', fontSize: '0.825rem', color: '#64748b' }}>
           <div>© 2026 ES TRANSPORTERS (IGR Quick Parcel Service). All rights reserved. GSTIN: 34BJCPM0785J1Z3</div>
-          <div>Proprietor: MATHAVAN</div>
+          <div>Proprietor: MATHAVAN &nbsp;|&nbsp; Partner: K. SELVAGANABATHY</div>
         </div>
       </footer>
 
