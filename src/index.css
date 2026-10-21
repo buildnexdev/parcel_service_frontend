@@ -655,8 +655,8 @@ table.data-table tr:hover td {
 
 .footer-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
-  gap: 40px;
+  grid-template-columns: 1.35fr 0.9fr 1.35fr 1.2fr;
+  gap: 36px;
   margin-bottom: 40px;
 }
 

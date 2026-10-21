@@ -634,9 +634,57 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
 
           <div>
             <h4 style={{ color: '#fff', marginBottom: '14px' }}>Network Corridor</h4>
-            <p style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.8' }}>
-              Pondicherry • Cuddalore • Chidambaram • Parangipettai • Sirkali • Mayiladuthurai • Karaikal • Nagore • Nagapattinam • Thiruvarur • Thiruthuraipoondi • Vedaranyam
-            </p>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', 
+              gap: '6px 14px', 
+              fontSize: '0.82rem'
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {['Pondicherry', 'Cuddalore', 'Chidambaram', 'Parangipettai', 'Sirkali', 'Mayiladuthurai'].map(s => (
+                  <a 
+                    href="#branches" 
+                    key={s} 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '7px', 
+                      whiteSpace: 'nowrap', 
+                      color: '#cbd5e1', 
+                      textDecoration: 'none',
+                      transition: 'color 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = '#38bdf8'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = '#cbd5e1'}
+                  >
+                    <span style={{ color: '#f59e0b', fontSize: '0.55rem', flexShrink: 0 }}>●</span>
+                    <span>{s}</span>
+                  </a>
+                ))}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {['Karaikal', 'Nagore', 'Nagapattinam', 'Thiruvarur', 'Thiruthuraipoondi', 'Vedaranyam'].map(s => (
+                  <a 
+                    href="#branches" 
+                    key={s} 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '7px', 
+                      whiteSpace: 'nowrap', 
+                      color: '#cbd5e1', 
+                      textDecoration: 'none',
+                      transition: 'color 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = '#38bdf8'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = '#cbd5e1'}
+                  >
+                    <span style={{ color: '#f59e0b', fontSize: '0.55rem', flexShrink: 0 }}>●</span>
+                    <span>{s}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div>
@@ -651,6 +699,18 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
         <div className="container" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '20px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', fontSize: '0.825rem', color: '#64748b' }}>
           <div>© 2026 ES TRANSPORTERS (IGR Quick Parcel Service). All rights reserved. GSTIN: 34BJCPM0785J1Z3</div>
           <div>Proprietor: MATHAVAN &nbsp;|&nbsp; Partner: K. SELVAGANABATHY</div>
+        </div>
+
+        <div className="container" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '16px', paddingTop: '16px', textAlign: 'center', fontSize: '0.85rem', color: '#94a3b8' }}>
+          Designed &amp; Developed with <span style={{ color: '#ef4444' }}>❤</span> by{' '}
+          <a
+            href="https://www.buildnexdev.in/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#38bdf8', fontWeight: 700, textDecoration: 'none' }}
+          >
+            BUILDNEXDEV
+          </a>
         </div>
       </footer>
 

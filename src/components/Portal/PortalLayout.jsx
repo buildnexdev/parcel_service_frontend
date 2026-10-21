@@ -162,6 +162,19 @@ const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenN
         <div className="portal-content">
           {children}
         </div>
+
+        {/* Portal Bottom Credit */}
+        <footer style={{ padding: '14px 20px', textAlign: 'center', fontSize: '0.825rem', color: '#64748b', borderTop: '1px solid #e2e8f0', background: '#ffffff', marginTop: 'auto' }}>
+          Designed &amp; Developed with <span style={{ color: '#ef4444' }}>❤</span> by{' '}
+          <a
+            href="https://www.buildnexdev.in/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#2563eb', fontWeight: 700, textDecoration: 'none' }}
+          >
+            BUILDNEXDEV
+          </a>
+        </footer>
       </main>
 
       {/* In-UI Logout Confirmation Modal */}
