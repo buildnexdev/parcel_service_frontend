@@ -81,6 +81,7 @@ const ReportsView = () => {
       return;
     }
     window.print();
+    showToast('🖨️ Delivery Run Sheet & Orders table sent to printer!', 'success');
   };
 
   // Export CSV

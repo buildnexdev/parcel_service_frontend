@@ -8,6 +8,52 @@ import {
   RotateCw, Sparkles
 } from 'lucide-react';
 
+export const PACKAGE_TYPES = [
+  { value: 'Box', label: 'Box / Carton', icon: '📦' },
+  { value: 'Bag', label: 'Gunny Bag / Plastic Bag', icon: '🎒' },
+  { value: 'Bundle', label: 'Cloth / Goods Bundle', icon: '🪢' },
+  { value: 'Carton', label: 'Carton Box', icon: '📦' },
+  { value: 'Cover', label: 'Cover / Document Envelope', icon: '✉️' },
+  { value: 'Roll', label: 'Roll / Drum / Bale', icon: '🪵' },
+  { value: 'Pcs', label: 'General Piece / Item', icon: '📦' }
+];
+
+export const parsePackageDenominations = (boxDetails) => {
+  if (!boxDetails) return [];
+  try {
+    const parsed = typeof boxDetails === 'string' ? JSON.parse(boxDetails) : boxDetails;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((b, i) => {
+      const p = parseInt(b.pieces, 10) || 1;
+      const tw = b.total_weight !== undefined && b.total_weight !== ''
+        ? parseFloat(b.total_weight)
+        : (parseFloat(b.weight) || 0);
+      const wp = b.weight_per_piece !== undefined && b.weight_per_piece !== ''
+        ? parseFloat(b.weight_per_piece)
+        : (p > 0 && tw > 0 ? parseFloat((tw / p).toFixed(2)) : tw);
+      const ta = b.total_amount !== undefined && b.total_amount !== ''
+        ? parseFloat(b.total_amount)
+        : (parseFloat(b.amount) || 0);
+      const rp = b.rate_per_piece !== undefined && b.rate_per_piece !== ''
+        ? parseFloat(b.rate_per_piece)
+        : (p > 0 && ta > 0 ? parseFloat((ta / p).toFixed(2)) : ta);
+      return {
+        box_no: b.box_no || i + 1,
+        package_type: b.package_type || 'Box',
+        pieces: p,
+        weight_per_piece: wp > 0 ? wp : '',
+        total_weight: tw > 0 ? tw : '',
+        weight: tw > 0 ? tw : '',
+        rate_per_piece: rp > 0 ? rp : '',
+        total_amount: ta > 0 ? ta : '',
+        amount: ta > 0 ? ta : ''
+      };
+    });
+  } catch (e) {
+    return [];
+  }
+};
+
 const OrdersView = ({ defaultOpenNew = false }) => {
   const { showToast } = useToast();
   const [orders, setOrders] = useState([]);
@@ -55,7 +101,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     rate_per_piece: 100,
     weight_kg: 0,
     has_separate_boxes: false,
-    box_items: [{ box_no: 1, weight: '', amount: '' }],
+    box_items: [{ box_no: 1, package_type: 'Box', pieces: 1, weight_per_piece: '', total_weight: '', weight: '', rate_per_piece: 100, total_amount: 100, amount: 100 }],
     description: 'Textiles / Goods',
     payment_mode: 'TO_PAY',
     payment_status: 'UNPAID',
@@ -95,7 +141,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     rate_per_piece: 100,
     weight_kg: 0,
     has_separate_boxes: false,
-    box_items: [{ box_no: 1, weight: '', amount: '' }],
+    box_items: [{ box_no: 1, package_type: 'Box', pieces: 1, weight_per_piece: '', total_weight: '', weight: '', rate_per_piece: 100, total_amount: 100, amount: 100 }],
     description: 'Goods',
     payment_mode: 'TO_PAY',
     payment_status: 'UNPAID',
@@ -216,29 +262,32 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     setOrderForm(prev => {
       const rate = parseFloat(prev.rate_per_piece) || 0;
       let newBoxes = prev.box_items || [];
-      if (prev.has_separate_boxes) {
-        if (p > newBoxes.length) {
-          const added = Array.from({ length: p - newBoxes.length }, (_, i) => ({
-            box_no: newBoxes.length + i + 1,
-            weight: '',
-            amount: rate > 0 ? rate : ''
-          }));
-          newBoxes = [...newBoxes, ...added];
-        } else {
-          newBoxes = newBoxes.slice(0, p);
-        }
+      if (prev.has_separate_boxes && newBoxes.length === 1) {
+        newBoxes = newBoxes.map(b => {
+          const wp = parseFloat(b.weight_per_piece) || 0;
+          const rp = parseFloat(b.rate_per_piece) || rate;
+          const tw = wp > 0 ? parseFloat((p * wp).toFixed(2)) : b.total_weight;
+          const ta = rp > 0 ? parseFloat((p * rp).toFixed(2)) : b.total_amount;
+          return {
+            ...b,
+            pieces: p,
+            total_weight: tw,
+            weight: tw,
+            total_amount: ta,
+            amount: ta
+          };
+        });
       }
-      const hasBoxAmounts = prev.has_separate_boxes && newBoxes.some(b => parseFloat(b.amount) > 0);
-      const sumBoxAmounts = hasBoxAmounts ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
-      const newFreight = hasBoxAmounts ? sumBoxAmounts : (rate > 0 ? p * rate : prev.freight_amount);
-      const sumW = prev.has_separate_boxes ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0) : prev.weight_kg;
+      const sumBoxAmounts = prev.has_separate_boxes ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.total_amount || b.amount) || 0), 0) : 0;
+      const sumBoxWeights = prev.has_separate_boxes ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.total_weight || b.weight) || 0), 0) : prev.weight_kg;
+      const newFreight = prev.has_separate_boxes && sumBoxAmounts > 0 ? sumBoxAmounts : (rate > 0 ? p * rate : prev.freight_amount);
 
       return {
         ...prev,
         pieces: p,
         freight_amount: newFreight,
         box_items: newBoxes,
-        weight_kg: prev.has_separate_boxes && sumW > 0 ? parseFloat(sumW.toFixed(2)) : prev.weight_kg
+        weight_kg: prev.has_separate_boxes && sumBoxWeights > 0 ? parseFloat(sumBoxWeights.toFixed(2)) : prev.weight_kg
       };
     });
   };
@@ -250,13 +299,21 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       const numRate = parseFloat(rate) || 0;
       let newBoxes = prev.box_items || [];
       if (prev.has_separate_boxes && numRate > 0) {
-        newBoxes = newBoxes.map(b => ({
-          ...b,
-          amount: (b.amount === '' || parseFloat(b.amount) === parseFloat(prev.rate_per_piece)) ? numRate : b.amount
-        }));
+        newBoxes = newBoxes.map(b => {
+          const bp = parseInt(b.pieces, 10) || 1;
+          const isDefaultRate = b.rate_per_piece === '' || parseFloat(b.rate_per_piece) === parseFloat(prev.rate_per_piece);
+          const newRp = isDefaultRate ? numRate : b.rate_per_piece;
+          const newTa = isDefaultRate ? parseFloat((bp * numRate).toFixed(2)) : b.total_amount;
+          return {
+            ...b,
+            rate_per_piece: newRp,
+            total_amount: newTa,
+            amount: newTa
+          };
+        });
       }
-      const hasBoxAmounts = prev.has_separate_boxes && newBoxes.some(b => parseFloat(b.amount) > 0);
-      const sumBoxAmounts = hasBoxAmounts ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
+      const hasBoxAmounts = prev.has_separate_boxes && newBoxes.some(b => parseFloat(b.total_amount || b.amount) > 0);
+      const sumBoxAmounts = hasBoxAmounts ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.total_amount || b.amount) || 0), 0) : 0;
       const newFreight = hasBoxAmounts ? sumBoxAmounts : (numRate > 0 ? p * numRate : prev.freight_amount);
 
       return {
@@ -286,23 +343,34 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     setOrderForm(prev => {
       const p = parseInt(prev.pieces, 10) || 1;
       const rate = parseFloat(prev.rate_per_piece) || 0;
+      const totalW = parseFloat(prev.weight_kg) || 0;
+      const freight = parseFloat(prev.freight_amount) || (rate > 0 ? p * rate : 0);
       let items = prev.box_items || [];
+
       if (checked) {
-        if (items.length !== p) {
-          items = Array.from({ length: p }, (_, i) => items[i] || { box_no: i + 1, weight: '', amount: rate > 0 ? rate : '' });
-        } else {
-          items = items.map((b) => ({
-            ...b,
-            amount: b.amount !== undefined && b.amount !== '' ? b.amount : (rate > 0 ? rate : '')
-          }));
+        if (!items || items.length === 0 || (items.length === 1 && !items[0].total_weight && !items[0].total_amount)) {
+          const unitW = (p > 0 && totalW > 0) ? parseFloat((totalW / p).toFixed(2)) : '';
+          const unitRate = (p > 0 && freight > 0) ? parseFloat((freight / p).toFixed(2)) : (rate > 0 ? rate : '');
+          items = [{
+            box_no: 1,
+            package_type: 'Box',
+            pieces: p,
+            weight_per_piece: unitW,
+            total_weight: totalW > 0 ? totalW : '',
+            weight: totalW > 0 ? totalW : '',
+            rate_per_piece: unitRate,
+            total_amount: freight > 0 ? freight : '',
+            amount: freight > 0 ? freight : ''
+          }];
         }
-        const sumW = items.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
-        const hasBoxAmounts = items.some(b => parseFloat(b.amount) > 0);
-        const sumAmt = hasBoxAmounts ? items.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : (rate > 0 ? p * rate : prev.freight_amount);
+        const sumPcs = items.reduce((acc, b) => acc + (parseInt(b.pieces, 10) || 0), 0);
+        const sumW = items.reduce((acc, b) => acc + (parseFloat(b.total_weight || b.weight) || 0), 0);
+        const sumAmt = items.reduce((acc, b) => acc + (parseFloat(b.total_amount || b.amount) || 0), 0);
         return {
           ...prev,
           has_separate_boxes: true,
           box_items: items,
+          pieces: sumPcs > 0 ? sumPcs : prev.pieces,
           weight_kg: sumW > 0 ? parseFloat(sumW.toFixed(2)) : prev.weight_kg,
           freight_amount: sumAmt > 0 ? parseFloat(sumAmt.toFixed(2)) : prev.freight_amount
         };
@@ -315,53 +383,94 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     });
   };
 
-  const handleBoxWeightChange = (index, val) => {
+  const handleBoxFieldChange = (index, field, value) => {
     setOrderForm(prev => {
-      const updated = prev.box_items.map((b, i) => i === index ? { ...b, weight: val } : b);
-      const sumW = updated.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
-      return {
-        ...prev,
-        box_items: updated,
-        weight_kg: parseFloat(sumW.toFixed(2))
-      };
-    });
-  };
+      const updated = prev.box_items.map((b, i) => {
+        if (i !== index) return b;
+        const item = { ...b, [field]: value };
+        const p = parseInt(field === 'pieces' ? value : item.pieces, 10) || 1;
+        item.pieces = Math.max(1, p);
 
-  const handleBoxAmountChange = (index, val) => {
-    setOrderForm(prev => {
-      const updated = prev.box_items.map((b, i) => i === index ? { ...b, amount: val } : b);
-      const sumAmt = updated.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0);
-      const p = parseInt(prev.pieces, 10) || 1;
-      const derivedRate = p > 0 ? parseFloat((sumAmt / p).toFixed(2)) : prev.rate_per_piece;
+        if (field === 'weight_per_piece') {
+          const wp = value === '' ? '' : Math.max(0, parseFloat(value) || 0);
+          item.weight_per_piece = wp;
+          item.total_weight = wp !== '' ? parseFloat((item.pieces * wp).toFixed(2)) : '';
+          item.weight = item.total_weight;
+        } else if (field === 'total_weight' || field === 'weight') {
+          const tw = value === '' ? '' : Math.max(0, parseFloat(value) || 0);
+          item.total_weight = tw;
+          item.weight = tw;
+          item.weight_per_piece = (tw !== '' && item.pieces > 0) ? parseFloat((tw / item.pieces).toFixed(2)) : '';
+        } else if (field === 'pieces') {
+          if (item.weight_per_piece !== '') {
+            item.total_weight = parseFloat((item.pieces * (parseFloat(item.weight_per_piece) || 0)).toFixed(2));
+            item.weight = item.total_weight;
+          }
+          if (item.rate_per_piece !== '') {
+            item.total_amount = parseFloat((item.pieces * (parseFloat(item.rate_per_piece) || 0)).toFixed(2));
+            item.amount = item.total_amount;
+          }
+        } else if (field === 'rate_per_piece') {
+          const rp = value === '' ? '' : Math.max(0, parseFloat(value) || 0);
+          item.rate_per_piece = rp;
+          item.total_amount = rp !== '' ? parseFloat((item.pieces * rp).toFixed(2)) : '';
+          item.amount = item.total_amount;
+        } else if (field === 'total_amount' || field === 'amount') {
+          const ta = value === '' ? '' : Math.max(0, parseFloat(value) || 0);
+          item.total_amount = ta;
+          item.amount = ta;
+          item.rate_per_piece = (ta !== '' && item.pieces > 0) ? parseFloat((ta / item.pieces).toFixed(2)) : '';
+        }
+        return item;
+      });
+
+      const sumPcs = updated.reduce((acc, b) => acc + (parseInt(b.pieces, 10) || 0), 0);
+      const sumW = updated.reduce((acc, b) => acc + (parseFloat(b.total_weight || b.weight) || 0), 0);
+      const sumAmt = updated.reduce((acc, b) => acc + (parseFloat(b.total_amount || b.amount) || 0), 0);
+      const derivedRate = sumPcs > 0 && sumAmt > 0 ? parseFloat((sumAmt / sumPcs).toFixed(2)) : prev.rate_per_piece;
+
       return {
         ...prev,
         box_items: updated,
-        freight_amount: parseFloat(sumAmt.toFixed(2)),
+        pieces: sumPcs > 0 ? sumPcs : prev.pieces,
+        weight_kg: parseFloat(sumW.toFixed(2)),
+        freight_amount: sumAmt > 0 ? parseFloat(sumAmt.toFixed(2)) : prev.freight_amount,
         rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
       };
     });
   };
+
+  const handleBoxWeightChange = (index, val) => handleBoxFieldChange(index, 'total_weight', val);
+  const handleBoxAmountChange = (index, val) => handleBoxFieldChange(index, 'total_amount', val);
 
   const handleAddBox = () => {
     setOrderForm(prev => {
       const rate = parseFloat(prev.rate_per_piece) || 0;
       const newItems = [
         ...(prev.box_items || []),
-        { box_no: (prev.box_items?.length || 0) + 1, weight: '', amount: rate > 0 ? rate : '' }
+        {
+          box_no: (prev.box_items?.length || 0) + 1,
+          package_type: 'Box',
+          pieces: 1,
+          weight_per_piece: '',
+          total_weight: '',
+          weight: '',
+          rate_per_piece: rate > 0 ? rate : '',
+          total_amount: rate > 0 ? rate : '',
+          amount: rate > 0 ? rate : ''
+        }
       ];
-      const newPcs = newItems.length;
-      const sumW = newItems.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
-      const hasBoxAmounts = newItems.some(b => parseFloat(b.amount) > 0);
-      const sumBoxAmounts = hasBoxAmounts ? newItems.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
-      const newFreight = hasBoxAmounts ? sumBoxAmounts : (rate > 0 ? newPcs * rate : prev.freight_amount);
-      const derivedRate = newPcs > 0 && newFreight > 0 ? parseFloat((newFreight / newPcs).toFixed(2)) : rate;
+      const sumPcs = newItems.reduce((acc, b) => acc + (parseInt(b.pieces, 10) || 0), 0);
+      const sumW = newItems.reduce((acc, b) => acc + (parseFloat(b.total_weight || b.weight) || 0), 0);
+      const sumAmt = newItems.reduce((acc, b) => acc + (parseFloat(b.total_amount || b.amount) || 0), 0);
+      const derivedRate = sumPcs > 0 && sumAmt > 0 ? parseFloat((sumAmt / sumPcs).toFixed(2)) : prev.rate_per_piece;
 
       return {
         ...prev,
-        pieces: newPcs,
+        pieces: sumPcs > 0 ? sumPcs : prev.pieces,
         box_items: newItems,
         weight_kg: parseFloat(sumW.toFixed(2)),
-        freight_amount: newFreight,
+        freight_amount: sumAmt > 0 ? parseFloat(sumAmt.toFixed(2)) : prev.freight_amount,
         rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
       };
     });
@@ -371,20 +480,17 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     setOrderForm(prev => {
       if ((prev.box_items?.length || 0) <= 1) return prev;
       const filtered = prev.box_items.filter((_, i) => i !== index).map((b, i) => ({ ...b, box_no: i + 1 }));
-      const newPcs = filtered.length;
-      const sumW = filtered.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
-      const hasBoxAmounts = filtered.some(b => parseFloat(b.amount) > 0);
-      const sumBoxAmounts = hasBoxAmounts ? filtered.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
-      const rate = parseFloat(prev.rate_per_piece) || 0;
-      const newFreight = hasBoxAmounts ? sumBoxAmounts : (rate > 0 ? newPcs * rate : prev.freight_amount);
-      const derivedRate = newPcs > 0 && newFreight > 0 ? parseFloat((newFreight / newPcs).toFixed(2)) : rate;
+      const sumPcs = filtered.reduce((acc, b) => acc + (parseInt(b.pieces, 10) || 0), 0);
+      const sumW = filtered.reduce((acc, b) => acc + (parseFloat(b.total_weight || b.weight) || 0), 0);
+      const sumAmt = filtered.reduce((acc, b) => acc + (parseFloat(b.total_amount || b.amount) || 0), 0);
+      const derivedRate = sumPcs > 0 && sumAmt > 0 ? parseFloat((sumAmt / sumPcs).toFixed(2)) : prev.rate_per_piece;
 
       return {
         ...prev,
-        pieces: newPcs,
+        pieces: sumPcs > 0 ? sumPcs : prev.pieces,
         box_items: filtered,
         weight_kg: parseFloat(sumW.toFixed(2)),
-        freight_amount: newFreight,
+        freight_amount: sumAmt > 0 ? parseFloat(sumAmt.toFixed(2)) : prev.freight_amount,
         rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
       };
     });
@@ -398,29 +504,32 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     setEditForm(prev => {
       const rate = parseFloat(prev.rate_per_piece) || 0;
       let newBoxes = prev.box_items || [];
-      if (prev.has_separate_boxes) {
-        if (p > newBoxes.length) {
-          const added = Array.from({ length: p - newBoxes.length }, (_, i) => ({
-            box_no: newBoxes.length + i + 1,
-            weight: '',
-            amount: rate > 0 ? rate : ''
-          }));
-          newBoxes = [...newBoxes, ...added];
-        } else {
-          newBoxes = newBoxes.slice(0, p);
-        }
+      if (prev.has_separate_boxes && newBoxes.length === 1) {
+        newBoxes = newBoxes.map(b => {
+          const wp = parseFloat(b.weight_per_piece) || 0;
+          const rp = parseFloat(b.rate_per_piece) || rate;
+          const tw = wp > 0 ? parseFloat((p * wp).toFixed(2)) : b.total_weight;
+          const ta = rp > 0 ? parseFloat((p * rp).toFixed(2)) : b.total_amount;
+          return {
+            ...b,
+            pieces: p,
+            total_weight: tw,
+            weight: tw,
+            total_amount: ta,
+            amount: ta
+          };
+        });
       }
-      const hasBoxAmounts = prev.has_separate_boxes && newBoxes.some(b => parseFloat(b.amount) > 0);
-      const sumBoxAmounts = hasBoxAmounts ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
-      const newFreight = hasBoxAmounts ? sumBoxAmounts : (rate > 0 ? p * rate : prev.freight_amount);
-      const sumW = prev.has_separate_boxes ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0) : prev.weight_kg;
+      const sumBoxAmounts = prev.has_separate_boxes ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.total_amount || b.amount) || 0), 0) : 0;
+      const sumBoxWeights = prev.has_separate_boxes ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.total_weight || b.weight) || 0), 0) : prev.weight_kg;
+      const newFreight = prev.has_separate_boxes && sumBoxAmounts > 0 ? sumBoxAmounts : (rate > 0 ? p * rate : prev.freight_amount);
 
       return {
         ...prev,
         pieces: p,
         freight_amount: newFreight,
         box_items: newBoxes,
-        weight_kg: prev.has_separate_boxes && sumW > 0 ? parseFloat(sumW.toFixed(2)) : prev.weight_kg
+        weight_kg: prev.has_separate_boxes && sumBoxWeights > 0 ? parseFloat(sumBoxWeights.toFixed(2)) : prev.weight_kg
       };
     });
   };
@@ -432,13 +541,21 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       const numRate = parseFloat(rate) || 0;
       let newBoxes = prev.box_items || [];
       if (prev.has_separate_boxes && numRate > 0) {
-        newBoxes = newBoxes.map(b => ({
-          ...b,
-          amount: (b.amount === '' || parseFloat(b.amount) === parseFloat(prev.rate_per_piece)) ? numRate : b.amount
-        }));
+        newBoxes = newBoxes.map(b => {
+          const bp = parseInt(b.pieces, 10) || 1;
+          const isDefaultRate = b.rate_per_piece === '' || parseFloat(b.rate_per_piece) === parseFloat(prev.rate_per_piece);
+          const newRp = isDefaultRate ? numRate : b.rate_per_piece;
+          const newTa = isDefaultRate ? parseFloat((bp * numRate).toFixed(2)) : b.total_amount;
+          return {
+            ...b,
+            rate_per_piece: newRp,
+            total_amount: newTa,
+            amount: newTa
+          };
+        });
       }
-      const hasBoxAmounts = prev.has_separate_boxes && newBoxes.some(b => parseFloat(b.amount) > 0);
-      const sumBoxAmounts = hasBoxAmounts ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
+      const hasBoxAmounts = prev.has_separate_boxes && newBoxes.some(b => parseFloat(b.total_amount || b.amount) > 0);
+      const sumBoxAmounts = hasBoxAmounts ? newBoxes.reduce((acc, b) => acc + (parseFloat(b.total_amount || b.amount) || 0), 0) : 0;
       const newFreight = hasBoxAmounts ? sumBoxAmounts : (numRate > 0 ? p * numRate : prev.freight_amount);
 
       return {
@@ -468,23 +585,34 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     setEditForm(prev => {
       const p = parseInt(prev.pieces, 10) || 1;
       const rate = parseFloat(prev.rate_per_piece) || 0;
+      const totalW = parseFloat(prev.weight_kg) || 0;
+      const freight = parseFloat(prev.freight_amount) || (rate > 0 ? p * rate : 0);
       let items = prev.box_items || [];
+
       if (checked) {
-        if (items.length !== p) {
-          items = Array.from({ length: p }, (_, i) => items[i] || { box_no: i + 1, weight: '', amount: rate > 0 ? rate : '' });
-        } else {
-          items = items.map((b) => ({
-            ...b,
-            amount: b.amount !== undefined && b.amount !== '' ? b.amount : (rate > 0 ? rate : '')
-          }));
+        if (!items || items.length === 0 || (items.length === 1 && !items[0].total_weight && !items[0].total_amount)) {
+          const unitW = (p > 0 && totalW > 0) ? parseFloat((totalW / p).toFixed(2)) : '';
+          const unitRate = (p > 0 && freight > 0) ? parseFloat((freight / p).toFixed(2)) : (rate > 0 ? rate : '');
+          items = [{
+            box_no: 1,
+            package_type: 'Box',
+            pieces: p,
+            weight_per_piece: unitW,
+            total_weight: totalW > 0 ? totalW : '',
+            weight: totalW > 0 ? totalW : '',
+            rate_per_piece: unitRate,
+            total_amount: freight > 0 ? freight : '',
+            amount: freight > 0 ? freight : ''
+          }];
         }
-        const sumW = items.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
-        const hasBoxAmounts = items.some(b => parseFloat(b.amount) > 0);
-        const sumAmt = hasBoxAmounts ? items.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : (rate > 0 ? p * rate : prev.freight_amount);
+        const sumPcs = items.reduce((acc, b) => acc + (parseInt(b.pieces, 10) || 0), 0);
+        const sumW = items.reduce((acc, b) => acc + (parseFloat(b.total_weight || b.weight) || 0), 0);
+        const sumAmt = items.reduce((acc, b) => acc + (parseFloat(b.total_amount || b.amount) || 0), 0);
         return {
           ...prev,
           has_separate_boxes: true,
           box_items: items,
+          pieces: sumPcs > 0 ? sumPcs : prev.pieces,
           weight_kg: sumW > 0 ? parseFloat(sumW.toFixed(2)) : prev.weight_kg,
           freight_amount: sumAmt > 0 ? parseFloat(sumAmt.toFixed(2)) : prev.freight_amount
         };
@@ -497,53 +625,94 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     });
   };
 
-  const handleEditBoxWeightChange = (index, val) => {
+  const handleEditBoxFieldChange = (index, field, value) => {
     setEditForm(prev => {
-      const updated = prev.box_items.map((b, i) => i === index ? { ...b, weight: val } : b);
-      const sumW = updated.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
-      return {
-        ...prev,
-        box_items: updated,
-        weight_kg: parseFloat(sumW.toFixed(2))
-      };
-    });
-  };
+      const updated = prev.box_items.map((b, i) => {
+        if (i !== index) return b;
+        const item = { ...b, [field]: value };
+        const p = parseInt(field === 'pieces' ? value : item.pieces, 10) || 1;
+        item.pieces = Math.max(1, p);
 
-  const handleEditBoxAmountChange = (index, val) => {
-    setEditForm(prev => {
-      const updated = prev.box_items.map((b, i) => i === index ? { ...b, amount: val } : b);
-      const sumAmt = updated.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0);
-      const p = parseInt(prev.pieces, 10) || 1;
-      const derivedRate = p > 0 ? parseFloat((sumAmt / p).toFixed(2)) : prev.rate_per_piece;
+        if (field === 'weight_per_piece') {
+          const wp = value === '' ? '' : Math.max(0, parseFloat(value) || 0);
+          item.weight_per_piece = wp;
+          item.total_weight = wp !== '' ? parseFloat((item.pieces * wp).toFixed(2)) : '';
+          item.weight = item.total_weight;
+        } else if (field === 'total_weight' || field === 'weight') {
+          const tw = value === '' ? '' : Math.max(0, parseFloat(value) || 0);
+          item.total_weight = tw;
+          item.weight = tw;
+          item.weight_per_piece = (tw !== '' && item.pieces > 0) ? parseFloat((tw / item.pieces).toFixed(2)) : '';
+        } else if (field === 'pieces') {
+          if (item.weight_per_piece !== '') {
+            item.total_weight = parseFloat((item.pieces * (parseFloat(item.weight_per_piece) || 0)).toFixed(2));
+            item.weight = item.total_weight;
+          }
+          if (item.rate_per_piece !== '') {
+            item.total_amount = parseFloat((item.pieces * (parseFloat(item.rate_per_piece) || 0)).toFixed(2));
+            item.amount = item.total_amount;
+          }
+        } else if (field === 'rate_per_piece') {
+          const rp = value === '' ? '' : Math.max(0, parseFloat(value) || 0);
+          item.rate_per_piece = rp;
+          item.total_amount = rp !== '' ? parseFloat((item.pieces * rp).toFixed(2)) : '';
+          item.amount = item.total_amount;
+        } else if (field === 'total_amount' || field === 'amount') {
+          const ta = value === '' ? '' : Math.max(0, parseFloat(value) || 0);
+          item.total_amount = ta;
+          item.amount = ta;
+          item.rate_per_piece = (ta !== '' && item.pieces > 0) ? parseFloat((ta / item.pieces).toFixed(2)) : '';
+        }
+        return item;
+      });
+
+      const sumPcs = updated.reduce((acc, b) => acc + (parseInt(b.pieces, 10) || 0), 0);
+      const sumW = updated.reduce((acc, b) => acc + (parseFloat(b.total_weight || b.weight) || 0), 0);
+      const sumAmt = updated.reduce((acc, b) => acc + (parseFloat(b.total_amount || b.amount) || 0), 0);
+      const derivedRate = sumPcs > 0 && sumAmt > 0 ? parseFloat((sumAmt / sumPcs).toFixed(2)) : prev.rate_per_piece;
+
       return {
         ...prev,
         box_items: updated,
-        freight_amount: parseFloat(sumAmt.toFixed(2)),
+        pieces: sumPcs > 0 ? sumPcs : prev.pieces,
+        weight_kg: parseFloat(sumW.toFixed(2)),
+        freight_amount: sumAmt > 0 ? parseFloat(sumAmt.toFixed(2)) : prev.freight_amount,
         rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
       };
     });
   };
+
+  const handleEditBoxWeightChange = (index, val) => handleEditBoxFieldChange(index, 'total_weight', val);
+  const handleEditBoxAmountChange = (index, val) => handleEditBoxFieldChange(index, 'total_amount', val);
 
   const handleEditAddBox = () => {
     setEditForm(prev => {
       const rate = parseFloat(prev.rate_per_piece) || 0;
       const newItems = [
         ...(prev.box_items || []),
-        { box_no: (prev.box_items?.length || 0) + 1, weight: '', amount: rate > 0 ? rate : '' }
+        {
+          box_no: (prev.box_items?.length || 0) + 1,
+          package_type: 'Box',
+          pieces: 1,
+          weight_per_piece: '',
+          total_weight: '',
+          weight: '',
+          rate_per_piece: rate > 0 ? rate : '',
+          total_amount: rate > 0 ? rate : '',
+          amount: rate > 0 ? rate : ''
+        }
       ];
-      const newPcs = newItems.length;
-      const sumW = newItems.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
-      const hasBoxAmounts = newItems.some(b => parseFloat(b.amount) > 0);
-      const sumBoxAmounts = hasBoxAmounts ? newItems.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
-      const newFreight = hasBoxAmounts ? sumBoxAmounts : (rate > 0 ? newPcs * rate : prev.freight_amount);
-      const derivedRate = newPcs > 0 && newFreight > 0 ? parseFloat((newFreight / newPcs).toFixed(2)) : rate;
+      const sumPcs = newItems.reduce((acc, b) => acc + (parseInt(b.pieces, 10) || 0), 0);
+      const sumW = newItems.reduce((acc, b) => acc + (parseFloat(b.total_weight || b.weight) || 0), 0);
+      const sumAmt = newItems.reduce((acc, b) => acc + (parseFloat(b.total_amount || b.amount) || 0), 0);
+      const derivedRate = sumPcs > 0 && sumAmt > 0 ? parseFloat((sumAmt / sumPcs).toFixed(2)) : prev.rate_per_piece;
 
       return {
         ...prev,
-        pieces: newPcs,
+        pieces: sumPcs > 0 ? sumPcs : prev.pieces,
         box_items: newItems,
         weight_kg: parseFloat(sumW.toFixed(2)),
-        freight_amount: newFreight,
+        freight_amount: sumAmt > 0 ? parseFloat(sumAmt.toFixed(2)) : prev.freight_amount,
         rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
       };
     });
@@ -553,20 +722,17 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     setEditForm(prev => {
       if ((prev.box_items?.length || 0) <= 1) return prev;
       const filtered = prev.box_items.filter((_, i) => i !== index).map((b, i) => ({ ...b, box_no: i + 1 }));
-      const newPcs = filtered.length;
-      const sumW = filtered.reduce((acc, b) => acc + (parseFloat(b.weight) || 0), 0);
-      const hasBoxAmounts = filtered.some(b => parseFloat(b.amount) > 0);
-      const sumBoxAmounts = hasBoxAmounts ? filtered.reduce((acc, b) => acc + (parseFloat(b.amount) || 0), 0) : 0;
-      const rate = parseFloat(prev.rate_per_piece) || 0;
-      const newFreight = hasBoxAmounts ? sumBoxAmounts : (rate > 0 ? newPcs * rate : prev.freight_amount);
-      const derivedRate = newPcs > 0 && newFreight > 0 ? parseFloat((newFreight / newPcs).toFixed(2)) : rate;
+      const sumPcs = filtered.reduce((acc, b) => acc + (parseInt(b.pieces, 10) || 0), 0);
+      const sumW = filtered.reduce((acc, b) => acc + (parseFloat(b.total_weight || b.weight) || 0), 0);
+      const sumAmt = filtered.reduce((acc, b) => acc + (parseFloat(b.total_amount || b.amount) || 0), 0);
+      const derivedRate = sumPcs > 0 && sumAmt > 0 ? parseFloat((sumAmt / sumPcs).toFixed(2)) : prev.rate_per_piece;
 
       return {
         ...prev,
-        pieces: newPcs,
+        pieces: sumPcs > 0 ? sumPcs : prev.pieces,
         box_items: filtered,
         weight_kg: parseFloat(sumW.toFixed(2)),
-        freight_amount: newFreight,
+        freight_amount: sumAmt > 0 ? parseFloat(sumAmt.toFixed(2)) : prev.freight_amount,
         rate_per_piece: derivedRate > 0 ? derivedRate : prev.rate_per_piece
       };
     });
@@ -618,14 +784,14 @@ const OrdersView = ({ defaultOpenNew = false }) => {
 
     try {
       const res = await api.updatePayment(selectedOrder.id, paymentForm);
-      showToast(res.message || 'Payment updated successfully!', 'success');
+      showToast(res.message || `Payment updated for Parcel LR #${selectedOrder.lr_number} successfully!`, 'success');
       setIsPaymentModalOpen(false);
       loadOrders();
       setSuccessModalData({
-        title: 'Payment Status Updated!',
-        message: `Payment update confirmed for LR #${selectedOrder.lr_number}.`,
+        title: 'Parcel Payment Updated!',
+        message: `Payment update confirmed for Parcel LR #${selectedOrder.lr_number}.`,
         details: {
-          'LR Number': `#${selectedOrder.lr_number}`,
+          'Parcel LR Number': `#${selectedOrder.lr_number}`,
           'Payment Status': paymentForm.payment_status,
           'Payment Mode': paymentForm.payment_mode,
           'Amount Paid': `₹${paymentForm.amount_paid}`,
@@ -641,7 +807,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
   const handleTriggerStatusChange = (order, newStatus) => {
     if (!newStatus) return;
     setStatusChangeDialog({ order, newStatus });
-    setStatusNote(`Order marked as ${newStatus}`);
+    setStatusNote(`Parcel marked as ${newStatus}`);
     setMarkPaymentPaid(order.payment_mode === 'TO_PAY');
   };
 
@@ -658,15 +824,15 @@ const OrdersView = ({ defaultOpenNew = false }) => {
         note: statusNote,
         mark_payment_paid: newStatus === 'DELIVERED' && markPaymentPaid
       });
-      showToast(res.message || `Status updated to ${newStatus}!`, 'success');
+      showToast(res.message || `Parcel LR #${order.lr_number} status updated to ${newStatus}!`, 'success');
       setStatusChangeDialog(null);
       loadOrders();
       setSuccessModalData({
-        title: `Order Status Updated: ${newStatus}`,
-        message: `Delivery status for LR #${order.lr_number} has been updated.`,
+        title: `Parcel Status: ${newStatus}`,
+        message: `Delivery status for Parcel LR #${order.lr_number} has been updated.`,
         details: {
-          'LR Number': `#${order.lr_number}`,
-          'New Status': newStatus,
+          'Parcel LR Number': `#${order.lr_number}`,
+          'New Delivery Status': newStatus,
           'Route': `${order.from_station} ➔ ${order.to_station}`,
           'Checkpoint Note': statusNote || 'Status logged'
         }
@@ -728,11 +894,24 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     }
     try {
       const boxDetailsToSave = orderForm.has_separate_boxes && orderForm.box_items?.length > 0
-        ? orderForm.box_items.map((b, i) => ({
-            box_no: i + 1,
-            weight: parseFloat(b.weight) || 0,
-            amount: parseFloat(b.amount) || 0
-          }))
+        ? orderForm.box_items.map((b, i) => {
+            const p = parseInt(b.pieces, 10) || 1;
+            const tw = parseFloat(b.total_weight !== undefined && b.total_weight !== '' ? b.total_weight : b.weight) || 0;
+            const wp = parseFloat(b.weight_per_piece) || (p > 0 && tw > 0 ? parseFloat((tw / p).toFixed(2)) : tw);
+            const ta = parseFloat(b.total_amount !== undefined && b.total_amount !== '' ? b.total_amount : b.amount) || 0;
+            const rp = parseFloat(b.rate_per_piece) || (p > 0 && ta > 0 ? parseFloat((ta / p).toFixed(2)) : ta);
+            return {
+              box_no: i + 1,
+              package_type: b.package_type || 'Box',
+              pieces: p,
+              weight_per_piece: wp > 0 ? wp : 0,
+              total_weight: tw > 0 ? tw : 0,
+              weight: tw > 0 ? tw : 0,
+              rate_per_piece: rp > 0 ? rp : 0,
+              total_amount: ta > 0 ? ta : 0,
+              amount: ta > 0 ? ta : 0
+            };
+          })
         : null;
 
       const res = await api.createOrder({
@@ -747,21 +926,21 @@ const OrdersView = ({ defaultOpenNew = false }) => {
         vehicle_id: orderForm.vehicle_id ? parseInt(orderForm.vehicle_id, 10) : null,
         vehicle_no: orderForm.vehicle_no || null
       });
-      showToast(res.message || 'Order created successfully!', 'success');
+      const created = res.order;
+      showToast(res.message || `Parcel LR #${created?.lr_number || ''} booked successfully!`, 'success');
       setIsNewOrderOpen(false);
       loadOrders();
 
-      const created = res.order;
       if (created) {
         setSuccessModalData({
-          title: 'Order Booked Successfully!',
-          message: `LR #${created.lr_number} has been generated and booked into the system.`,
+          title: 'Parcel Booked Successfully!',
+          message: `Parcel LR #${created.lr_number} has been generated and booked into the system.`,
           details: {
-            'LR Number': `#${created.lr_number}`,
+            'Parcel LR Number': `#${created.lr_number}`,
             'Route': `${created.from_station} ➔ ${created.to_station}`,
             'Sender': `${created.sender_name} (${created.sender_phone || 'N/A'})`,
             'Receiver': `${created.receiver_name} (${created.receiver_phone || 'N/A'})`,
-            'Packages': `${created.pieces} Pcs / ${created.weight_kg} Kg`,
+            'Parcel Cargo': `${created.pieces} Pcs / ${created.weight_kg} Kg`,
             'Total Freight': `₹${Number(created.total_amount).toLocaleString()} [${created.payment_mode} - ${created.payment_status}]`,
             'Assigned Vehicle': created.vehicle_no || created.driver_vehicle || 'Unassigned'
           },
@@ -784,24 +963,24 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       : (pcs > 0 ? parseFloat(((order.freight_amount || 0) / pcs).toFixed(2)) : 0);
 
     if (order.box_details) {
-      try {
-        const parsed = typeof order.box_details === 'string' ? JSON.parse(order.box_details) : order.box_details;
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          initialBoxes = parsed.map((b, i) => ({
-            box_no: b.box_no || i + 1,
-            weight: b.weight !== undefined ? b.weight : (typeof b === 'number' ? b : ''),
-            amount: b.amount !== undefined ? b.amount : (rate > 0 ? rate : '')
-          }));
-          hasBoxes = true;
-        }
-      } catch (e) {}
+      const parsed = parsePackageDenominations(order.box_details);
+      if (parsed.length > 0) {
+        initialBoxes = parsed;
+        hasBoxes = true;
+      }
     }
     if (!hasBoxes) {
-      initialBoxes = Array.from({ length: pcs }, (_, i) => ({
-        box_no: i + 1,
-        weight: '',
-        amount: rate > 0 ? rate : ''
-      }));
+      initialBoxes = [{
+        box_no: 1,
+        package_type: 'Box',
+        pieces: pcs,
+        weight_per_piece: (pcs > 0 && (order.weight_kg || 0) > 0) ? parseFloat(((order.weight_kg || 0) / pcs).toFixed(2)) : (order.weight_kg || ''),
+        total_weight: order.weight_kg || '',
+        weight: order.weight_kg || '',
+        rate_per_piece: rate > 0 ? rate : '',
+        total_amount: order.freight_amount || '',
+        amount: order.freight_amount || ''
+      }];
     }
 
     setEditForm({
@@ -850,11 +1029,24 @@ const OrdersView = ({ defaultOpenNew = false }) => {
 
     try {
       const boxDetailsToSave = editForm.has_separate_boxes && editForm.box_items?.length > 0
-        ? editForm.box_items.map((b, i) => ({
-            box_no: i + 1,
-            weight: parseFloat(b.weight) || 0,
-            amount: parseFloat(b.amount) || 0
-          }))
+        ? editForm.box_items.map((b, i) => {
+            const p = parseInt(b.pieces, 10) || 1;
+            const tw = parseFloat(b.total_weight !== undefined && b.total_weight !== '' ? b.total_weight : b.weight) || 0;
+            const wp = parseFloat(b.weight_per_piece) || (p > 0 && tw > 0 ? parseFloat((tw / p).toFixed(2)) : tw);
+            const ta = parseFloat(b.total_amount !== undefined && b.total_amount !== '' ? b.total_amount : b.amount) || 0;
+            const rp = parseFloat(b.rate_per_piece) || (p > 0 && ta > 0 ? parseFloat((ta / p).toFixed(2)) : ta);
+            return {
+              box_no: i + 1,
+              package_type: b.package_type || 'Box',
+              pieces: p,
+              weight_per_piece: wp > 0 ? wp : 0,
+              total_weight: tw > 0 ? tw : 0,
+              weight: tw > 0 ? tw : 0,
+              rate_per_piece: rp > 0 ? rp : 0,
+              total_amount: ta > 0 ? ta : 0,
+              amount: ta > 0 ? ta : 0
+            };
+          })
         : null;
 
       const res = await api.updateOrder(editingOrderId, {
@@ -901,13 +1093,11 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     let boxSummary = '';
     let hasCustomBoxRates = false;
     if (order.box_details) {
-      try {
-        const parsed = typeof order.box_details === 'string' ? JSON.parse(order.box_details) : order.box_details;
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          hasCustomBoxRates = parsed.some(b => parseFloat(b.amount) > 0);
-          boxSummary = parsed.map((b, i) => `Box ${i + 1}: ${b.weight} kg${parseFloat(b.amount) > 0 ? ` (₹${b.amount})` : ''}`).join(' | ');
-        }
-      } catch (e) {}
+      const parsed = parsePackageDenominations(order.box_details);
+      if (parsed.length > 0) {
+        hasCustomBoxRates = parsed.some(b => parseFloat(b.total_amount || b.amount) > 0);
+        boxSummary = parsed.map((b, i) => `${b.pieces}× ${b.package_type || 'Box'} (${b.weight_per_piece ? `${b.weight_per_piece}kg ea` : `${b.total_weight || b.weight}kg`}${parseFloat(b.total_amount || b.amount) > 0 ? `, ₹${b.total_amount || b.amount}` : ''})`).join(' | ');
+      }
     }
 
     const rateText = hasCustomBoxRates
@@ -1011,6 +1201,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
 
     document.body.classList.add('printing-order-lr');
     window.print();
+    showToast(`🖨️ Parcel LR #${order.lr_number} Waybill sent to printer successfully!`, 'success');
     setTimeout(() => {
       document.body.classList.remove('printing-order-lr');
       if (printArea) printArea.innerHTML = '';
@@ -1024,12 +1215,10 @@ const OrdersView = ({ defaultOpenNew = false }) => {
 
     let boxSummary = '';
     if (order.box_details) {
-      try {
-        const parsed = typeof order.box_details === 'string' ? JSON.parse(order.box_details) : order.box_details;
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          boxSummary = parsed.map((b, i) => `#${i + 1}: ${b.weight}kg${parseFloat(b.amount) > 0 ? ` (₹${b.amount})` : ''}`).join(', ');
-        }
-      } catch (e) {}
+      const parsed = parsePackageDenominations(order.box_details);
+      if (parsed.length > 0) {
+        boxSummary = parsed.map((b, i) => `${b.pieces}x${b.package_type || 'Box'}(${b.weight_per_piece ? `${b.weight_per_piece}kg` : `${b.total_weight || b.weight}kg`}${parseFloat(b.total_amount || b.amount) > 0 ? `@₹${b.rate_per_piece || (b.total_amount / b.pieces).toFixed(0)}` : ''})`).join(', ');
+      }
     }
 
     printArea.innerHTML = `
@@ -1090,6 +1279,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
 
     document.body.classList.add('printing-order-lr');
     window.print();
+    showToast(`📱 Parcel LR #${order.lr_number} Bluetooth Thermal Slip sent to printer!`, 'success');
     setTimeout(() => {
       document.body.classList.remove('printing-order-lr');
       if (printArea) printArea.innerHTML = '';
@@ -1249,21 +1439,64 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                         <span style={{ color: '#2563eb', fontWeight: 800 }}>➔</span>
                         <span>{o.to_station}</span>
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
-                        📦 {o.pieces} Pcs {o.weight_kg > 0 ? `• ${o.weight_kg} kg` : ''}
+                      <div style={{ fontSize: '0.775rem', fontWeight: 700, color: '#0f172a', marginTop: '4px' }}>
+                        📦 {o.pieces} Pcs {o.weight_kg > 0 ? `• ⚖️ ${o.weight_kg} kg` : ''}
                       </div>
-                      {o.box_details && (() => {
-                        try {
-                          const boxes = typeof o.box_details === 'string' ? JSON.parse(o.box_details) : o.box_details;
-                          if (Array.isArray(boxes) && boxes.length > 0) {
-                            return (
-                              <div style={{ fontSize: '0.675rem', color: '#0369a1', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '4px', padding: '2px 6px', marginTop: '3px', width: 'fit-content' }}>
-                                📦 {boxes.map((b, i) => `#${i + 1}: ${b.weight}kg${parseFloat(b.amount) > 0 ? ` (₹${b.amount})` : ''}`).join(', ')}
+
+                      {/* Package Denomination Breakdown */}
+                      {(() => {
+                        const denoms = parsePackageDenominations(o.box_details);
+                        if (denoms.length > 0) {
+                          return (
+                            <div style={{ marginTop: '5px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                              <div style={{ fontSize: '0.675rem', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Denomination:
                               </div>
-                            );
-                          }
-                        } catch (e) {}
-                        return null;
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                {denoms.map((d, i) => (
+                                  <span key={i} style={{
+                                    fontSize: '0.685rem',
+                                    background: '#f0f9ff',
+                                    color: '#0369a1',
+                                    border: '1px solid #bae6fd',
+                                    borderRadius: '4px',
+                                    padding: '2px 6px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    lineHeight: 1.2
+                                  }}>
+                                    <strong style={{ color: '#0f172a' }}>{d.pieces}× {d.package_type || 'Box'}</strong>
+                                    <span style={{ color: '#475569' }}>
+                                      ({d.weight_per_piece ? `${d.weight_per_piece}kg` : (d.total_weight ? `${d.total_weight}kg` : '')}{d.rate_per_piece ? ` • ₹${d.rate_per_piece}` : ''})
+                                    </span>
+                                    {parseFloat(d.total_amount) > 0 && (
+                                      <span style={{ color: '#047857', fontWeight: 700 }}>= ₹{d.total_amount}</span>
+                                    )}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div style={{
+                            marginTop: '4px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '0.7rem',
+                            background: '#f8fafc',
+                            color: '#475569',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '4px',
+                            padding: '2px 6px'
+                          }}>
+                            <span>⚖️ {o.pieces > 0 && o.weight_kg > 0 ? `${(o.weight_kg / o.pieces).toFixed(1)} kg/pc` : `${o.weight_kg || 0} kg`}</span>
+                            <span style={{ color: '#cbd5e1' }}>•</span>
+                            <span style={{ color: '#047857', fontWeight: 600 }}>₹{parseFloat(o.rate_per_piece) > 0 ? o.rate_per_piece : (o.pieces > 0 ? (o.freight_amount / o.pieces).toFixed(0) : 0)}/pc</span>
+                          </div>
+                        );
                       })()}
                     </td>
 
@@ -1274,20 +1507,18 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                         ₹{Number(o.total_amount).toLocaleString()}
                       </div>
                       {(() => {
-                        try {
-                          const boxes = o.box_details ? (typeof o.box_details === 'string' ? JSON.parse(o.box_details) : o.box_details) : null;
-                          if (Array.isArray(boxes) && boxes.some(b => parseFloat(b.amount) > 0)) {
-                            return (
-                              <div style={{ fontSize: '0.7rem', color: '#047857', fontWeight: 600, marginTop: '2px' }}>
-                                Separate Box Rates ({boxes.length} boxes)
-                              </div>
-                            );
-                          }
-                        } catch (e) {}
+                        const denoms = parsePackageDenominations(o.box_details);
+                        if (denoms.length > 0) {
+                          return (
+                            <div style={{ fontSize: '0.7rem', color: '#047857', fontWeight: 700, marginTop: '2px' }}>
+                              Itemized ({denoms.length} {denoms.length === 1 ? 'item' : 'items'}) • Freight: ₹{o.freight_amount}
+                            </div>
+                          );
+                        }
                         if (parseFloat(o.rate_per_piece) > 0 || (o.pieces > 1 && o.total_amount > 0)) {
                           return (
                             <div style={{ fontSize: '0.7rem', color: '#047857', fontWeight: 600, marginTop: '2px' }}>
-                              ₹{parseFloat(o.rate_per_piece) > 0 ? o.rate_per_piece : (o.total_amount / o.pieces).toFixed(0)}/pc × {o.pieces}
+                              ₹{parseFloat(o.rate_per_piece) > 0 ? o.rate_per_piece : (o.total_amount / o.pieces).toFixed(0)}/pc × {o.pieces} pcs
                             </div>
                           );
                         }
@@ -1759,16 +1990,17 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                {/* Weight & Individual Box Weights & Amounts Section */}
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px' }}>
+                {/* Package Denomination Breakdown Section */}
+                <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '14px', marginBottom: '18px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: 700, fontSize: '0.875rem', color: '#1e293b' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>
                       <input
                         type="checkbox"
                         checked={orderForm.has_separate_boxes}
                         onChange={(e) => handleToggleSeparateBoxes(e.target.checked)}
+                        style={{ width: 16, height: 16, accentColor: '#2563eb' }}
                       />
-                      <span>📦 Individual Boxes ({orderForm.pieces} {orderForm.pieces === 1 ? 'Box' : 'Boxes'})</span>
+                      <span>📦 Itemize Package Denominations (Quantity, Weight & Rates)</span>
                     </label>
 
                     {orderForm.has_separate_boxes ? (
@@ -1776,14 +2008,14 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                         type="button"
                         onClick={handleAddBox}
                         className="btn btn-outline btn-xs"
-                        style={{ padding: '3px 8px', fontSize: '0.75rem', gap: '4px', background: '#fff', borderColor: '#cbd5e1' }}
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', gap: '4px', background: '#fff', borderColor: '#2563eb', color: '#2563eb', fontWeight: 700 }}
                       >
-                        <Plus size={12} />
-                        <span>Add Box</span>
+                        <Plus size={13} />
+                        <span>Add Package Row</span>
                       </button>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Total Weight:</span>
+                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Total Consignment Weight:</span>
                         <input
                           type="number"
                           step="0.1"
@@ -1793,72 +2025,143 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                           value={orderForm.weight_kg}
                           onChange={(e) => setOrderForm({ ...orderForm, weight_kg: e.target.value })}
                         />
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>KG</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 800 }}>KG</span>
                       </div>
                     )}
                   </div>
 
+                  {!orderForm.has_separate_boxes && (
+                    <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span>💡 Check above if parcel has different boxes, bags, or items with separate weights/rates.</span>
+                      {parseFloat(orderForm.pieces) > 0 && parseFloat(orderForm.weight_kg) > 0 && (
+                        <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                          Avg: {(orderForm.weight_kg / orderForm.pieces).toFixed(1)} kg / piece
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {orderForm.has_separate_boxes && (
                     <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '10px', maxHeight: '190px', overflowY: 'auto', padding: '2px' }}>
-                        {(orderForm.box_items || []).map((box, idx) => (
-                          <div key={idx} style={{ background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px 10px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1e293b' }}>
-                                📦 #{idx + 1}
-                              </span>
-                              {(orderForm.box_items || []).length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveBox(idx)}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px 4px', display: 'flex', alignItems: 'center' }}
-                                  title="Remove box"
-                                >
-                                  <X size={14} />
-                                </button>
-                              )}
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '2px 6px' }}>
-                                <span style={{ fontSize: '0.8rem', color: '#64748b', marginRight: '4px' }} title="Weight (kg)">⚖️</span>
-                                <input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  placeholder="0.0"
-                                  className="form-control"
-                                  style={{ border: 'none', background: 'transparent', padding: '2px 0', height: '28px', fontSize: '0.85rem', textAlign: 'right', fontWeight: 700 }}
-                                  value={box.weight}
-                                  onChange={(e) => handleBoxWeightChange(idx, e.target.value)}
-                                />
-                                <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '3px', fontWeight: 600 }}>kg</span>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '2px 6px' }}>
-                                <span style={{ fontSize: '0.85rem', color: '#047857', fontWeight: 800, marginRight: '4px' }} title="Amount (₹)">₹</span>
-                                <input
-                                  type="number"
-                                  step="1"
-                                  min="0"
-                                  placeholder="0"
-                                  className="form-control"
-                                  style={{ border: 'none', background: 'transparent', padding: '2px 0', height: '28px', fontSize: '0.85rem', textAlign: 'right', fontWeight: 700, color: '#047857' }}
-                                  value={box.amount}
-                                  onChange={(e) => handleBoxAmountChange(idx, e.target.value)}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                      <div style={{ overflowX: 'auto', maxHeight: '250px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem' }}>
+                          <thead>
+                            <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#475569', fontSize: '0.75rem' }}>
+                              <th style={{ padding: '6px 8px', width: '28px' }}>#</th>
+                              <th style={{ padding: '6px 8px', minWidth: '130px' }}>Package Type</th>
+                              <th style={{ padding: '6px 8px', width: '70px', textAlign: 'center' }}>Qty (Pcs)</th>
+                              <th style={{ padding: '6px 8px', width: '90px', textAlign: 'right' }}>Wt / Pc (kg)</th>
+                              <th style={{ padding: '6px 8px', width: '90px', textAlign: 'right' }}>Total Wt (kg)</th>
+                              <th style={{ padding: '6px 8px', width: '90px', textAlign: 'right' }}>Rate / Pc (₹)</th>
+                              <th style={{ padding: '6px 8px', width: '95px', textAlign: 'right' }}>Total (₹)</th>
+                              <th style={{ padding: '6px 4px', width: '30px' }}></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(orderForm.box_items || []).map((box, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
+                                <td style={{ padding: '6px 8px', fontWeight: 700, color: '#64748b' }}>{idx + 1}</td>
+                                <td style={{ padding: '4px 6px' }}>
+                                  <select
+                                    className="form-control"
+                                    style={{ padding: '4px 6px', height: '30px', fontSize: '0.8rem', fontWeight: 600 }}
+                                    value={box.package_type || 'Box'}
+                                    onChange={(e) => handleBoxFieldChange(idx, 'package_type', e.target.value)}
+                                  >
+                                    {PACKAGE_TYPES.map(pt => (
+                                      <option key={pt.value} value={pt.value}>{pt.icon} {pt.label}</option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td style={{ padding: '4px 6px' }}>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    className="form-control"
+                                    style={{ padding: '4px 6px', height: '30px', fontSize: '0.825rem', textAlign: 'center', fontWeight: 700 }}
+                                    value={box.pieces || 1}
+                                    onChange={(e) => handleBoxFieldChange(idx, 'pieces', e.target.value)}
+                                  />
+                                </td>
+                                <td style={{ padding: '4px 6px' }}>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    placeholder="0.0"
+                                    className="form-control"
+                                    style={{ padding: '4px 6px', height: '30px', fontSize: '0.825rem', textAlign: 'right', fontWeight: 600 }}
+                                    value={box.weight_per_piece}
+                                    onChange={(e) => handleBoxFieldChange(idx, 'weight_per_piece', e.target.value)}
+                                  />
+                                </td>
+                                <td style={{ padding: '4px 6px' }}>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    placeholder="0.0"
+                                    className="form-control"
+                                    style={{ padding: '4px 6px', height: '30px', fontSize: '0.825rem', textAlign: 'right', fontWeight: 700, color: '#0369a1', background: '#f0f9ff' }}
+                                    value={box.total_weight}
+                                    onChange={(e) => handleBoxFieldChange(idx, 'total_weight', e.target.value)}
+                                  />
+                                </td>
+                                <td style={{ padding: '4px 6px' }}>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    placeholder="0"
+                                    className="form-control"
+                                    style={{ padding: '4px 6px', height: '30px', fontSize: '0.825rem', textAlign: 'right', fontWeight: 600 }}
+                                    value={box.rate_per_piece}
+                                    onChange={(e) => handleBoxFieldChange(idx, 'rate_per_piece', e.target.value)}
+                                  />
+                                </td>
+                                <td style={{ padding: '4px 6px' }}>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    placeholder="0"
+                                    className="form-control"
+                                    style={{ padding: '4px 6px', height: '30px', fontSize: '0.825rem', textAlign: 'right', fontWeight: 800, color: '#047857', background: '#f0fdf4' }}
+                                    value={box.total_amount}
+                                    onChange={(e) => handleBoxFieldChange(idx, 'total_amount', e.target.value)}
+                                  />
+                                </td>
+                                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
+                                  {(orderForm.box_items || []).length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveBox(idx)}
+                                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px', display: 'inline-flex', alignItems: 'center' }}
+                                      title="Remove row"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1', fontSize: '0.825rem' }}>
-                        <span style={{ color: '#64748b', fontSize: '0.785rem' }}>
-                          <strong>{orderForm.box_items?.length || 0}</strong> boxes
+
+                      {/* Summary Footer */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '10px', paddingTop: '8px', borderTop: '1.5px solid #cbd5e1', fontSize: '0.85rem' }}>
+                        <span style={{ color: '#475569', fontSize: '0.8rem', fontWeight: 600 }}>
+                          Total Items: <strong>{orderForm.box_items?.length || 0}</strong> item row{(orderForm.box_items?.length || 0) === 1 ? '' : 's'}
                         </span>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 800, color: '#0f172a', background: '#e2e8f0', padding: '3px 10px', borderRadius: '4px' }}>
-                            📦 Total: {orderForm.weight_kg || 0} kg
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 800, color: '#1e293b', background: '#e2e8f0', padding: '4px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>
+                            📦 {orderForm.pieces || 0} Pcs
                           </span>
-                          <span style={{ fontWeight: 800, color: '#047857', background: '#dcfce7', border: '1px solid #86efac', padding: '3px 10px', borderRadius: '4px' }}>
+                          <span style={{ fontWeight: 800, color: '#0369a1', background: '#e0f2fe', padding: '4px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>
+                            ⚖️ {orderForm.weight_kg || 0} kg
+                          </span>
+                          <span style={{ fontWeight: 800, color: '#047857', background: '#dcfce7', border: '1px solid #86efac', padding: '4px 12px', borderRadius: '4px', fontSize: '0.85rem' }}>
                             💰 Freight: ₹{orderForm.freight_amount || 0}
                           </span>
                         </div>
@@ -2196,16 +2499,17 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   </div>
                 </div>
 
-                {/* Weight & Individual Box Weights & Amounts Section */}
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px' }}>
+                {/* Package Denomination Breakdown Section */}
+                <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '14px', marginBottom: '18px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: 700, fontSize: '0.875rem', color: '#1e293b' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>
                       <input
                         type="checkbox"
                         checked={editForm.has_separate_boxes}
                         onChange={(e) => handleEditToggleSeparateBoxes(e.target.checked)}
+                        style={{ width: 16, height: 16, accentColor: '#2563eb' }}
                       />
-                      <span>📦 Individual Boxes ({editForm.pieces} {editForm.pieces === 1 ? 'Box' : 'Boxes'})</span>
+                      <span>📦 Itemize Package Denominations (Quantity, Weight & Rates)</span>
                     </label>
 
                     {editForm.has_separate_boxes ? (
@@ -2213,14 +2517,14 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                         type="button"
                         onClick={handleEditAddBox}
                         className="btn btn-outline btn-xs"
-                        style={{ padding: '3px 8px', fontSize: '0.75rem', gap: '4px', background: '#fff', borderColor: '#cbd5e1' }}
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', gap: '4px', background: '#fff', borderColor: '#2563eb', color: '#2563eb', fontWeight: 700 }}
                       >
-                        <Plus size={12} />
-                        <span>Add Box</span>
+                        <Plus size={13} />
+                        <span>Add Package Row</span>
                       </button>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Total Weight:</span>
+                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Total Consignment Weight:</span>
                         <input
                           type="number"
                           step="0.1"
@@ -2230,72 +2534,143 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                           value={editForm.weight_kg}
                           onChange={(e) => setEditForm({ ...editForm, weight_kg: e.target.value })}
                         />
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>KG</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 800 }}>KG</span>
                       </div>
                     )}
                   </div>
 
+                  {!editForm.has_separate_boxes && (
+                    <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span>💡 Check above if parcel has different boxes, bags, or items with separate weights/rates.</span>
+                      {parseFloat(editForm.pieces) > 0 && parseFloat(editForm.weight_kg) > 0 && (
+                        <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                          Avg: {(editForm.weight_kg / editForm.pieces).toFixed(1)} kg / piece
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {editForm.has_separate_boxes && (
                     <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '10px', maxHeight: '190px', overflowY: 'auto', padding: '2px' }}>
-                        {(editForm.box_items || []).map((box, idx) => (
-                          <div key={idx} style={{ background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px 10px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1e293b' }}>
-                                📦 #{idx + 1}
-                              </span>
-                              {(editForm.box_items || []).length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditRemoveBox(idx)}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px 4px', display: 'flex', alignItems: 'center' }}
-                                  title="Remove box"
-                                >
-                                  <X size={14} />
-                                </button>
-                              )}
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '2px 6px' }}>
-                                <span style={{ fontSize: '0.8rem', color: '#64748b', marginRight: '4px' }} title="Weight (kg)">⚖️</span>
-                                <input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  placeholder="0.0"
-                                  className="form-control"
-                                  style={{ border: 'none', background: 'transparent', padding: '2px 0', height: '28px', fontSize: '0.85rem', textAlign: 'right', fontWeight: 700 }}
-                                  value={box.weight}
-                                  onChange={(e) => handleEditBoxWeightChange(idx, e.target.value)}
-                                />
-                                <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '3px', fontWeight: 600 }}>kg</span>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '2px 6px' }}>
-                                <span style={{ fontSize: '0.85rem', color: '#047857', fontWeight: 800, marginRight: '4px' }} title="Amount (₹)">₹</span>
-                                <input
-                                  type="number"
-                                  step="1"
-                                  min="0"
-                                  placeholder="0"
-                                  className="form-control"
-                                  style={{ border: 'none', background: 'transparent', padding: '2px 0', height: '28px', fontSize: '0.85rem', textAlign: 'right', fontWeight: 700, color: '#047857' }}
-                                  value={box.amount}
-                                  onChange={(e) => handleEditBoxAmountChange(idx, e.target.value)}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                      <div style={{ overflowX: 'auto', maxHeight: '250px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem' }}>
+                          <thead>
+                            <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#475569', fontSize: '0.75rem' }}>
+                              <th style={{ padding: '6px 8px', width: '28px' }}>#</th>
+                              <th style={{ padding: '6px 8px', minWidth: '130px' }}>Package Type</th>
+                              <th style={{ padding: '6px 8px', width: '70px', textAlign: 'center' }}>Qty (Pcs)</th>
+                              <th style={{ padding: '6px 8px', width: '90px', textAlign: 'right' }}>Wt / Pc (kg)</th>
+                              <th style={{ padding: '6px 8px', width: '90px', textAlign: 'right' }}>Total Wt (kg)</th>
+                              <th style={{ padding: '6px 8px', width: '90px', textAlign: 'right' }}>Rate / Pc (₹)</th>
+                              <th style={{ padding: '6px 8px', width: '95px', textAlign: 'right' }}>Total (₹)</th>
+                              <th style={{ padding: '6px 4px', width: '30px' }}></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(editForm.box_items || []).map((box, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
+                                <td style={{ padding: '6px 8px', fontWeight: 700, color: '#64748b' }}>{idx + 1}</td>
+                                <td style={{ padding: '4px 6px' }}>
+                                  <select
+                                    className="form-control"
+                                    style={{ padding: '4px 6px', height: '30px', fontSize: '0.8rem', fontWeight: 600 }}
+                                    value={box.package_type || 'Box'}
+                                    onChange={(e) => handleEditBoxFieldChange(idx, 'package_type', e.target.value)}
+                                  >
+                                    {PACKAGE_TYPES.map(pt => (
+                                      <option key={pt.value} value={pt.value}>{pt.icon} {pt.label}</option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td style={{ padding: '4px 6px' }}>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    className="form-control"
+                                    style={{ padding: '4px 6px', height: '30px', fontSize: '0.825rem', textAlign: 'center', fontWeight: 700 }}
+                                    value={box.pieces || 1}
+                                    onChange={(e) => handleEditBoxFieldChange(idx, 'pieces', e.target.value)}
+                                  />
+                                </td>
+                                <td style={{ padding: '4px 6px' }}>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    placeholder="0.0"
+                                    className="form-control"
+                                    style={{ padding: '4px 6px', height: '30px', fontSize: '0.825rem', textAlign: 'right', fontWeight: 600 }}
+                                    value={box.weight_per_piece}
+                                    onChange={(e) => handleEditBoxFieldChange(idx, 'weight_per_piece', e.target.value)}
+                                  />
+                                </td>
+                                <td style={{ padding: '4px 6px' }}>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    placeholder="0.0"
+                                    className="form-control"
+                                    style={{ padding: '4px 6px', height: '30px', fontSize: '0.825rem', textAlign: 'right', fontWeight: 700, color: '#0369a1', background: '#f0f9ff' }}
+                                    value={box.total_weight}
+                                    onChange={(e) => handleEditBoxFieldChange(idx, 'total_weight', e.target.value)}
+                                  />
+                                </td>
+                                <td style={{ padding: '4px 6px' }}>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    placeholder="0"
+                                    className="form-control"
+                                    style={{ padding: '4px 6px', height: '30px', fontSize: '0.825rem', textAlign: 'right', fontWeight: 600 }}
+                                    value={box.rate_per_piece}
+                                    onChange={(e) => handleEditBoxFieldChange(idx, 'rate_per_piece', e.target.value)}
+                                  />
+                                </td>
+                                <td style={{ padding: '4px 6px' }}>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    placeholder="0"
+                                    className="form-control"
+                                    style={{ padding: '4px 6px', height: '30px', fontSize: '0.825rem', textAlign: 'right', fontWeight: 800, color: '#047857', background: '#f0fdf4' }}
+                                    value={box.total_amount}
+                                    onChange={(e) => handleEditBoxFieldChange(idx, 'total_amount', e.target.value)}
+                                  />
+                                </td>
+                                <td style={{ padding: '4px 4px', textAlign: 'center' }}>
+                                  {(editForm.box_items || []).length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEditRemoveBox(idx)}
+                                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px', display: 'inline-flex', alignItems: 'center' }}
+                                      title="Remove row"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1', fontSize: '0.825rem' }}>
-                        <span style={{ color: '#64748b', fontSize: '0.785rem' }}>
-                          <strong>{editForm.box_items?.length || 0}</strong> boxes
+
+                      {/* Summary Footer */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '10px', paddingTop: '8px', borderTop: '1.5px solid #cbd5e1', fontSize: '0.85rem' }}>
+                        <span style={{ color: '#475569', fontSize: '0.8rem', fontWeight: 600 }}>
+                          Total Items: <strong>{editForm.box_items?.length || 0}</strong> item row{(editForm.box_items?.length || 0) === 1 ? '' : 's'}
                         </span>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 800, color: '#0f172a', background: '#e2e8f0', padding: '3px 10px', borderRadius: '4px' }}>
-                            📦 Total: {editForm.weight_kg || 0} kg
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 800, color: '#1e293b', background: '#e2e8f0', padding: '4px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>
+                            📦 {editForm.pieces || 0} Pcs
                           </span>
-                          <span style={{ fontWeight: 800, color: '#047857', background: '#dcfce7', border: '1px solid #86efac', padding: '3px 10px', borderRadius: '4px' }}>
+                          <span style={{ fontWeight: 800, color: '#0369a1', background: '#e0f2fe', padding: '4px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>
+                            ⚖️ {editForm.weight_kg || 0} kg
+                          </span>
+                          <span style={{ fontWeight: 800, color: '#047857', background: '#dcfce7', border: '1px solid #86efac', padding: '4px 12px', borderRadius: '4px', fontSize: '0.85rem' }}>
                             💰 Freight: ₹{editForm.freight_amount || 0}
                           </span>
                         </div>
@@ -2491,10 +2866,35 @@ const OrdersView = ({ defaultOpenNew = false }) => {
         <div className="modal-overlay" onClick={() => setIsTrackingDrawerOpen(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Tracking Lifecycle (LR #{selectedOrder.lr_number})</h3>
-              <button className="modal-close" onClick={() => setIsTrackingDrawerOpen(false)}>
-                <X size={22} />
-              </button>
+              <div>
+                <h3 style={{ margin: 0 }}>Parcel Consignment (LR #{selectedOrder.lr_number})</h3>
+                <span style={{ fontSize: '0.775rem', color: '#64748b' }}>Complete lifecycle tracking & billing details</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-xs"
+                  onClick={() => handlePrintLR(selectedOrder)}
+                  title="Print Full A4 Waybill"
+                  style={{ gap: '4px', fontSize: '0.75rem', padding: '5px 9px' }}
+                >
+                  <Printer size={13} />
+                  <span>Print A4</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-xs"
+                  onClick={() => handlePrintThermalReceipt(selectedOrder)}
+                  title="Print Bluetooth Thermal Slip (Driver Slip)"
+                  style={{ gap: '4px', fontSize: '0.75rem', padding: '5px 9px', color: '#16a34a', borderColor: '#86efac', background: '#f0fdf4' }}
+                >
+                  <Printer size={13} />
+                  <span>Thermal Slip 📱</span>
+                </button>
+                <button className="modal-close" onClick={() => setIsTrackingDrawerOpen(false)}>
+                  <X size={22} />
+                </button>
+              </div>
             </div>
 
             <div className="modal-body">
@@ -2530,50 +2930,152 @@ const OrdersView = ({ defaultOpenNew = false }) => {
               )}
 
               {/* Consignment Packages & Pricing Details */}
-              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.85rem' }}>
+              <div style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '16px', marginBottom: '18px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.875rem' }}>
                   <div>
-                    <span style={{ color: '#64748b', fontSize: '0.75rem', display: 'block' }}>Packages & Weight</span>
-                    <strong style={{ color: '#0f172a' }}>{selectedOrder.pieces} Pcs ({selectedOrder.weight_kg} Kg)</strong>
-                    <div style={{ fontSize: '0.75rem', color: '#475569' }}>{selectedOrder.description || 'Goods'}</div>
+                    <span style={{ color: '#64748b', fontSize: '0.725rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, display: 'block' }}>
+                      Consignment Summary
+                    </span>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', marginTop: '3px' }}>
+                      📦 {selectedOrder.pieces} Pcs <span style={{ color: '#94a3b8', margin: '0 4px' }}>•</span> ⚖️ {selectedOrder.weight_kg} Kg
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '3px' }}>
+                      Goods: <strong>{selectedOrder.description || 'General Goods'}</strong>
+                    </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <span style={{ color: '#64748b', fontSize: '0.75rem', display: 'block' }}>Freight & Billing</span>
-                    <strong style={{ color: '#15803d', fontSize: '1rem' }}>₹{Number(selectedOrder.total_amount).toLocaleString()}</strong>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      {selectedOrder.payment_mode} • {selectedOrder.payment_status}
+                    <span style={{ color: '#64748b', fontSize: '0.725rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, display: 'block' }}>
+                      Freight & Billing
+                    </span>
+                    <div style={{ color: '#15803d', fontSize: '1.25rem', fontWeight: 900, marginTop: '3px' }}>
+                      ₹{Number(selectedOrder.total_amount).toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: '0.785rem', color: '#64748b', marginTop: '3px' }}>
+                      {selectedOrder.payment_mode} • <strong style={{ color: selectedOrder.payment_status === 'PAID' ? '#15803d' : '#b45309' }}>{selectedOrder.payment_status}</strong>
                     </div>
                   </div>
                 </div>
 
-                {parseFloat(selectedOrder.rate_per_piece) > 0 && (
-                  <div style={{ fontSize: '0.725rem', color: '#047857', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0' }}>
-                    Rate: ₹{selectedOrder.rate_per_piece}/pc × {selectedOrder.pieces} pcs = ₹{selectedOrder.freight_amount} {parseFloat(selectedOrder.other_charges) > 0 ? `+ ₹${selectedOrder.other_charges} other charges` : ''}
-                  </div>
-                )}
-
-                {selectedOrder.box_details && (() => {
-                  try {
-                    const boxes = typeof selectedOrder.box_details === 'string' ? JSON.parse(selectedOrder.box_details) : selectedOrder.box_details;
-                    if (Array.isArray(boxes) && boxes.length > 0) {
-                      return (
-                        <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0' }}>
-                          <span style={{ fontSize: '0.725rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
-                            Individual Box Details ({boxes.length} boxes):
+                {/* Denomination Breakdown */}
+                {(() => {
+                  const denoms = parsePackageDenominations(selectedOrder.box_details);
+                  if (denoms.length > 0) {
+                    return (
+                      <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed #cbd5e1' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            📦 Itemized Package Denominations ({denoms.length} Items)
                           </span>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                            {boxes.map((b, i) => (
-                              <span key={i} style={{ fontSize: '0.725rem', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '4px', padding: '3px 8px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <span>Box #{i + 1}: {b.weight} kg</span>
-                                {parseFloat(b.amount) > 0 && <span style={{ color: '#047857', background: '#dcfce7', padding: '1px 5px', borderRadius: '3px', fontWeight: 700 }}>₹{b.amount}</span>}
-                              </span>
-                            ))}
-                          </div>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            Total: <strong>{selectedOrder.pieces} Pcs</strong> • <strong>{selectedOrder.weight_kg} Kg</strong>
+                          </span>
                         </div>
-                      );
-                    }
-                  } catch (e) {}
-                  return null;
+
+                        <div style={{ overflowX: 'auto', background: '#fff', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem' }}>
+                            <thead>
+                              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.75rem' }}>
+                                <th style={{ padding: '6px 10px', textAlign: 'left', width: '30px' }}>#</th>
+                                <th style={{ padding: '6px 10px', textAlign: 'left' }}>Package Type</th>
+                                <th style={{ padding: '6px 10px', textAlign: 'center' }}>Quantity (Pcs)</th>
+                                <th style={{ padding: '6px 10px', textAlign: 'right' }}>Weight / Pc</th>
+                                <th style={{ padding: '6px 10px', textAlign: 'right' }}>Total Weight</th>
+                                <th style={{ padding: '6px 10px', textAlign: 'right' }}>Rate / Pc</th>
+                                <th style={{ padding: '6px 10px', textAlign: 'right' }}>Subtotal</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {denoms.map((d, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '7px 10px', color: '#64748b', fontWeight: 600 }}>{i + 1}</td>
+                                  <td style={{ padding: '7px 10px', fontWeight: 700, color: '#1e293b' }}>
+                                    {d.package_type || 'Box'}
+                                  </td>
+                                  <td style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>
+                                    {d.pieces} Pcs
+                                  </td>
+                                  <td style={{ padding: '7px 10px', textAlign: 'right', color: '#64748b' }}>
+                                    {d.weight_per_piece ? `${d.weight_per_piece} kg` : '-'}
+                                  </td>
+                                  <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 700, color: '#0369a1' }}>
+                                    {d.total_weight ? `${d.total_weight} kg` : `${d.weight || 0} kg`}
+                                  </td>
+                                  <td style={{ padding: '7px 10px', textAlign: 'right', color: '#64748b' }}>
+                                    {d.rate_per_piece ? `₹${d.rate_per_piece}` : '-'}
+                                  </td>
+                                  <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 800, color: '#047857' }}>
+                                    ₹{Number(d.total_amount || d.amount || 0).toLocaleString()}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0', fontWeight: 800 }}>
+                                <td colSpan={2} style={{ padding: '8px 10px', color: '#0f172a' }}>Total Consignment:</td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', color: '#2563eb' }}>{selectedOrder.pieces} Pcs</td>
+                                <td style={{ padding: '8px 10px', textAlign: 'right', color: '#64748b', fontSize: '0.75rem' }}>
+                                  {selectedOrder.pieces > 0 && selectedOrder.weight_kg > 0 ? `Avg ${(selectedOrder.weight_kg / selectedOrder.pieces).toFixed(1)} kg` : ''}
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'right', color: '#0369a1' }}>{selectedOrder.weight_kg} kg</td>
+                                <td style={{ padding: '8px 10px', textAlign: 'right', color: '#64748b', fontSize: '0.75rem' }}>
+                                  {selectedOrder.pieces > 0 && selectedOrder.freight_amount > 0 ? `Avg ₹${(selectedOrder.freight_amount / selectedOrder.pieces).toFixed(1)}` : ''}
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'right', color: '#047857', fontSize: '0.9rem' }}>
+                                  ₹{Number(selectedOrder.freight_amount).toLocaleString()}
+                                </td>
+                              </tr>
+                              {parseFloat(selectedOrder.other_charges) > 0 && (
+                                <tr style={{ background: '#fffbeb', fontSize: '0.75rem', color: '#92400e' }}>
+                                  <td colSpan={6} style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 600 }}>Other Handling / Door Delivery Charges:</td>
+                                  <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 700 }}>+ ₹{selectedOrder.other_charges}</td>
+                                </tr>
+                              )}
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Standard Consignment Denomination Card (when no separate box rows)
+                  return (
+                    <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>
+                        📦 Consignment Denomination:
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px' }}>
+                          <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block' }}>Package Count</span>
+                          <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>{selectedOrder.pieces} Pcs</strong>
+                        </div>
+                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px' }}>
+                          <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block' }}>Weight Denomination</span>
+                          <strong style={{ fontSize: '0.95rem', color: '#0369a1' }}>{selectedOrder.weight_kg} Kg</strong>
+                          {selectedOrder.pieces > 1 && selectedOrder.weight_kg > 0 && (
+                            <span style={{ fontSize: '0.675rem', color: '#64748b', display: 'block' }}>
+                              ({(selectedOrder.weight_kg / selectedOrder.pieces).toFixed(1)} kg / pc)
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px' }}>
+                          <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block' }}>Rate Denomination</span>
+                          <strong style={{ fontSize: '0.95rem', color: '#047857' }}>
+                            ₹{selectedOrder.rate_per_piece || (selectedOrder.pieces > 0 ? (selectedOrder.freight_amount / selectedOrder.pieces).toFixed(0) : 0)} / Pc
+                          </strong>
+                          <span style={{ fontSize: '0.675rem', color: '#64748b', display: 'block' }}>
+                            {selectedOrder.pieces} × ₹{selectedOrder.rate_per_piece || (selectedOrder.pieces > 0 ? (selectedOrder.freight_amount / selectedOrder.pieces).toFixed(0) : 0)} = ₹{selectedOrder.freight_amount}
+                          </span>
+                        </div>
+                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px' }}>
+                          <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block' }}>Billing Breakdown</span>
+                          <strong style={{ fontSize: '0.95rem', color: '#15803d' }}>₹{Number(selectedOrder.total_amount).toLocaleString()}</strong>
+                          <span style={{ fontSize: '0.675rem', color: '#64748b', display: 'block' }}>
+                            Freight ₹{selectedOrder.freight_amount} {parseFloat(selectedOrder.other_charges) > 0 ? `+ ₹${selectedOrder.other_charges}` : ''}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
                 })()}
               </div>
 
