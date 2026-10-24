@@ -14,7 +14,7 @@ const ReportsView = () => {
   const [singleDate, setSingleDate] = useState(new Date().toISOString().split('T')[0]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState('ALL');
+  const [paymentFilter, setPaymentFilter] = useState('ALL');
   const [deliveryStatus, setDeliveryStatus] = useState('ALL');
   const [fromStation, setFromStation] = useState('ALL');
   const [toStation, setToStation] = useState('ALL');
@@ -49,7 +49,8 @@ const ReportsView = () => {
         date: startDate && endDate ? undefined : singleDate,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        payment_status: paymentStatus,
+        payment_status: paymentFilter,
+        payment_method: paymentFilter,
         delivery_status: deliveryStatus,
         from_station: fromStation,
         to_station: toStation,
@@ -69,7 +70,7 @@ const ReportsView = () => {
     setSingleDate('');
     setStartDate('');
     setEndDate('');
-    setPaymentStatus('ALL');
+    setPaymentFilter('ALL');
     setDeliveryStatus('ALL');
     setFromStation('ALL');
     setToStation('ALL');
@@ -101,7 +102,7 @@ const ReportsView = () => {
       return;
     }
 
-    const headers = ['LR Number', 'Booking Date', 'Sender', 'Receiver', 'From', 'To', 'Pieces', 'Weight_KG', 'Delivery_Status', 'Payment_Mode', 'Payment_Status', 'Total_Amount', 'Driver'];
+    const headers = ['LR Number', 'Booking Date', 'Sender', 'Receiver', 'From', 'To', 'Pieces', 'Weight_KG', 'Delivery_Status', 'Payment_Status', 'Payment_Method', 'Payment_Mode', 'Total_Amount', 'Driver'];
     const rows = reportData.orders.map(o => [
       o.lr_number,
       o.booking_date,
@@ -112,8 +113,9 @@ const ReportsView = () => {
       o.pieces,
       o.weight_kg,
       o.delivery_status,
-      o.payment_mode,
       o.payment_status,
+      o.payment_method === 'UPI' ? 'GPay' : (o.payment_method === 'BANK_TRANSFER' ? 'Bank Transfer' : (o.payment_method || 'Cash')),
+      o.payment_mode,
       o.total_amount,
       `"${(o.driver_name || '').replace(/"/g, '""')}"`
     ]);
@@ -198,15 +200,18 @@ const ReportsView = () => {
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Payment Status</label>
+            <label className="form-label">Payment Method</label>
             <select
               className="form-control"
-              value={paymentStatus}
-              onChange={(e) => setPaymentStatus(e.target.value)}
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
             >
-              <option value="ALL">All Payment Statuses</option>
-              <option value="PAID">PAID</option>
-              <option value="UNPAID">UNPAID (Pending Collection)</option>
+              <option value="ALL">All Payments</option>
+              <option value="PAID">Paid (All)</option>
+              <option value="CASH">Cash</option>
+              <option value="GPAY">GPay</option>
+              <option value="BANK_TRANSFER">Bank Transfer</option>
+              <option value="UNPAID">Unpaid</option>
             </select>
           </div>
 
@@ -314,6 +319,11 @@ const ReportsView = () => {
           <div className="stat-card-info">
             <h4>Paid Collections</h4>
             <div className="stat-val" style={{ fontSize: '1.45rem', color: '#16a34a' }}>₹{Number(s.totalPaid).toLocaleString()}</div>
+            {(s.totalCash > 0 || s.totalGPay > 0 || s.totalBank > 0) && (
+              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
+                💵 Cash: ₹{s.totalCash || 0} • 📱 GPay: ₹{s.totalGPay || 0} {s.totalBank > 0 ? `• 🏦 Bank Transfer: ₹${s.totalBank}` : ''}
+              </div>
+            )}
           </div>
         </div>
 
@@ -346,8 +356,9 @@ const ReportsView = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #333', padding: '6px 10px', background: '#f8fafc' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #333', padding: '6px 10px', background: '#f8fafc', flexWrap: 'wrap', gap: '8px' }}>
           <span>DATE: {singleDate ? new Date(singleDate).toLocaleDateString('en-IN') : (startDate && endDate ? `${startDate} to ${endDate}` : 'All Dates')}</span>
+          <span>PAYMENT: {paymentFilter === 'BANK_TRANSFER' ? 'Bank Transfer' : (paymentFilter === 'ALL' ? 'All Payments' : paymentFilter)}</span>
           <span>ROUTE: {fromStation !== 'ALL' ? fromStation : 'All'} ➔ {toStation !== 'ALL' ? toStation : 'All'}</span>
           <span>TOTAL ORDERS: {orders.length}</span>
           <span>TOTAL FREIGHT: ₹{Number(s.totalAmount).toLocaleString()}</span>
@@ -370,7 +381,7 @@ const ReportsView = () => {
                 <th>Route</th>
                 <th>Pieces</th>
                 <th>Delivery Status</th>
-                <th>Payment Mode</th>
+                <th>Payment</th>
                 <th style={{ textAlign: 'right' }}>Amount</th>
               </tr>
             </thead>
@@ -400,8 +411,10 @@ const ReportsView = () => {
                       </span>
                     </td>
                     <td>
-                      <span className={`badge ${o.payment_status === 'PAID' ? 'badge-paid' : 'badge-topay'}`}>
-                        {o.payment_mode.replace(/_/g, ' ')} ({o.payment_status.replace(/_/g, ' ')})
+                      <span className={`badge ${o.payment_status === 'PAID' ? 'badge-paid' : (o.payment_mode === 'CREDIT' ? 'badge-credit' : 'badge-topay')}`}>
+                        {o.payment_status === 'PAID'
+                          ? `${o.payment_method === 'UPI' ? 'GPay' : (o.payment_method === 'BANK_TRANSFER' ? 'Bank Transfer' : (o.payment_method || 'Cash'))} • PAID`
+                          : `${o.payment_mode || 'TO PAY'} • UNPAID`}
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}><strong>₹{Number(o.total_amount).toLocaleString()}</strong></td>
