@@ -1,21 +1,43 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { LayoutDashboard, Package, Truck, Users, UserCheck, FileBarChart, User, LogOut, Globe, Plus, AlertTriangle, X, Menu } from 'lucide-react';
+import {
+  LayoutDashboard, Package, Truck, Users, UserCheck, FileBarChart,
+  User, LogOut, Globe, Plus, AlertTriangle, X, Menu,
+  Wallet, CalendarCheck, ShieldCheck
+} from 'lucide-react';
 
 const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenNewOrder }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'orders', label: 'Orders & Tracking', icon: Package },
-    { id: 'vehicles', label: 'Vehicles', icon: Truck },
-    { id: 'drivers', label: 'Assigned Drivers', icon: Users },
-    ...(user?.role === 'admin' ? [{ id: 'staff', label: 'Staff & Team', icon: UserCheck }] : []),
-    { id: 'reports', label: 'Daily Reports', icon: FileBarChart },
-    { id: 'profile', label: 'Profile & Password', icon: User }
+  const allNavItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, visible: true },
+    { id: 'orders', label: 'Orders & Tracking', icon: Package, visible: hasPermission('orders', 'view') },
+    { id: 'expenses', label: 'Daily Expense', icon: Wallet, visible: hasPermission('expenses', 'view') },
+    { id: 'attendance', label: 'Staff Attendance', icon: CalendarCheck, visible: hasPermission('attendance', 'view') },
+    { id: 'vehicles', label: 'Vehicles', icon: Truck, visible: hasPermission('vehicles', 'view') },
+    { id: 'drivers', label: 'Assigned Drivers', icon: Users, visible: hasPermission('drivers', 'view') },
+    { id: 'reports', label: 'Daily Reports', icon: FileBarChart, visible: hasPermission('reports', 'view') },
+    { id: 'staff', label: 'Staff & Team', icon: UserCheck, visible: user?.role === 'admin' && hasPermission('staff', 'view') },
+    { id: 'permissions', label: 'Permission Access', icon: ShieldCheck, visible: user?.role === 'admin' },
+    { id: 'profile', label: 'Profile & Password', icon: User, visible: true }
   ];
+
+  const navItems = allNavItems.filter(item => item.visible);
+
+  const tabTitles = {
+    dashboard: 'Dashboard Overview',
+    orders: 'Orders & Consignments (LR)',
+    expenses: 'Daily Expenses & Accounts',
+    attendance: 'Staff Daily Attendance & Register',
+    vehicles: 'Vehicles & Fleet Directory',
+    drivers: 'Assigned Drivers Directory',
+    reports: 'Daily & Financial Reports',
+    staff: 'Staff & Team Directory',
+    permissions: 'Permission Access & Role Management',
+    profile: 'Staff Profile & Security'
+  };
 
   const handleConfirmLogout = () => {
     setShowLogoutConfirm(false);
@@ -63,6 +85,8 @@ const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenN
           {navItems.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
+            const isSpecialAdminItem = item.id === 'permissions';
+
             return (
               <div
                 key={item.id}
@@ -74,20 +98,26 @@ const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenN
                   display: 'flex',
                   alignItems: 'center',
                   gap: 12,
-                  padding: '12px 16px',
+                  padding: '11px 16px',
                   borderRadius: 'var(--radius-md)',
-                  color: isActive ? '#ffffff' : '#94a3b8',
-                  background: isActive ? 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)' : 'transparent',
+                  color: isActive ? '#ffffff' : (isSpecialAdminItem ? '#fcd34d' : '#94a3b8'),
+                  background: isActive ? 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)' : (isSpecialAdminItem ? 'rgba(251, 191, 36, 0.08)' : 'transparent'),
                   fontWeight: isActive ? 700 : 500,
                   fontSize: '0.925rem',
                   marginBottom: 6,
                   cursor: 'pointer',
                   boxShadow: isActive ? '0 4px 16px rgba(37, 99, 235, 0.35)' : 'none',
+                  border: isSpecialAdminItem && !isActive ? '1px dashed rgba(251, 191, 36, 0.3)' : '1px solid transparent',
                   transition: 'all 0.18s ease'
                 }}
               >
-                <Icon size={18} strokeWidth={isActive ? 2.5 : 2} style={{ color: isActive ? '#fff' : '#64748b' }} />
+                <Icon size={18} strokeWidth={isActive ? 2.5 : 2} style={{ color: isActive ? '#fff' : (isSpecialAdminItem ? '#fbbf24' : '#64748b') }} />
                 <span>{item.label}</span>
+                {isSpecialAdminItem && (
+                  <span style={{ marginLeft: 'auto', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', background: isActive ? 'rgba(255,255,255,0.2)' : 'rgba(251, 191, 36, 0.2)', color: isActive ? '#fff' : '#fbbf24', fontWeight: 800 }}>
+                    ADMIN
+                  </span>
+                )}
               </div>
             );
           })}
@@ -140,15 +170,17 @@ const PortalLayout = ({ activeTab, onTabChange, onOpenWebsite, children, onOpenN
             </button>
 
             <h2 style={{ fontSize: 'clamp(1.05rem, 2.5vw, 1.35rem)', color: 'var(--text-main)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {activeTab === 'dashboard' ? 'Dashboard Overview' : (activeTab === 'orders' ? 'Orders & Tracking' : (activeTab === 'vehicles' ? 'Vehicles Directory' : (activeTab === 'drivers' ? 'Assigned Drivers' : (activeTab === 'staff' ? 'Staff & Team Directory' : (activeTab === 'reports' ? 'Daily Reports' : 'Staff Profile')))))}
+              {tabTitles[activeTab] || 'Management Portal'}
             </h2>
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="btn btn-accent btn-sm" onClick={onOpenNewOrder} style={{ padding: '6px 12px' }}>
-              <Plus size={16} />
-              <span>New Order</span>
-            </button>
+            {hasPermission('orders', 'add') && (
+              <button className="btn btn-accent btn-sm" onClick={onOpenNewOrder} style={{ padding: '6px 12px' }}>
+                <Plus size={16} />
+                <span>New Order</span>
+              </button>
+            )}
 
             <div className="flex items-center gap-2" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: 'var(--radius-md)' }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', flexShrink: 0, boxShadow: '0 0 0 2px #d1fae5' }}></div>

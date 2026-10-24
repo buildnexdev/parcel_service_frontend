@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api/api';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import SuccessModal from '../Common/SuccessModal';
 import { 
   Package, Search, Plus, CreditCard, Eye, Printer, 
   CheckCircle2, Clock, Truck, X, PlusCircle, AlertCircle, Phone, Edit, Trash2,
-  RotateCw, Sparkles
+  RotateCw, Sparkles, ShieldAlert
 } from 'lucide-react';
 
 export const PACKAGE_TYPES = [
@@ -55,6 +56,7 @@ export const parsePackageDenominations = (boxDetails) => {
 };
 
 const OrdersView = ({ defaultOpenNew = false }) => {
+  const { hasPermission } = useAuth();
   const { showToast } = useToast();
   const [orders, setOrders] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -72,6 +74,8 @@ const OrdersView = ({ defaultOpenNew = false }) => {
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isTrackingDrawerOpen, setIsTrackingDrawerOpen] = useState(false);
+  const [deleteConfirmOrder, setDeleteConfirmOrder] = useState(null);
+  const [deletingOrder, setDeletingOrder] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [trackingHistory, setTrackingHistory] = useState([]);
   const [successModalData, setSuccessModalData] = useState(null);
@@ -198,6 +202,10 @@ const OrdersView = ({ defaultOpenNew = false }) => {
   };
 
   const handleOpenNewOrder = async () => {
+    if (!hasPermission('orders', 'add')) {
+      showToast('You do not have permission to create new orders.', 'error');
+      return;
+    }
     const station = orderForm.from_station || 'Karaikal';
     const date = orderForm.booking_date || new Date().toISOString().split('T')[0];
     const nextLr = await fetchNextWaybill(station, date);
@@ -206,6 +214,26 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       lr_number: nextLr || prev.lr_number
     }));
     setIsNewOrderOpen(true);
+  };
+
+  const handleConfirmDeleteOrder = async () => {
+    if (!deleteConfirmOrder) return;
+    if (!hasPermission('orders', 'delete')) {
+      showToast('You do not have permission to delete orders.', 'error');
+      return;
+    }
+    setDeletingOrder(true);
+    try {
+      await api.deleteOrder(deleteConfirmOrder.id);
+      showToast(`Parcel LR #${deleteConfirmOrder.lr_number} deleted successfully!`, 'success');
+      setDeleteConfirmOrder(null);
+      loadOrders();
+    } catch (err) {
+      console.error('Delete order error:', err);
+      showToast(err.message || 'Failed to delete order', 'error');
+    } finally {
+      setDeletingOrder(false);
+    }
   };
 
   const handleStationOrDateChange = async (station, date) => {
@@ -1357,10 +1385,12 @@ const OrdersView = ({ defaultOpenNew = false }) => {
               <option value="UNPAID">UNPAID (To-Pay / Pending)</option>
             </select>
 
-            <button className="btn btn-accent" onClick={handleOpenNewOrder} style={{ whiteSpace: 'nowrap' }}>
-              <Plus size={18} />
-              <span>Add Order</span>
-            </button>
+            {hasPermission('orders', 'add') && (
+              <button className="btn btn-accent" onClick={handleOpenNewOrder} style={{ whiteSpace: 'nowrap' }}>
+                <Plus size={18} />
+                <span>Add Order</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1567,61 +1597,65 @@ const OrdersView = ({ defaultOpenNew = false }) => {
 
                     <td className="no-print">
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '160px' }}>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          {/* IN-PLACE PAYMENT UPDATE BUTTON */}
-                          <button
-                            className="btn btn-sm"
-                            onClick={() => handleOpenPayment(o)}
-                            title="Update payment in-place"
-                            style={{ 
-                              background: o.payment_status === 'PAID' ? '#ecfdf5' : '#eff6ff',
-                              color: o.payment_status === 'PAID' ? '#047857' : '#1d4ed8',
-                              border: o.payment_status === 'PAID' ? '1px solid #a7f3d0' : '1px solid #bfdbfe',
-                              padding: '5px 10px',
-                              fontSize: '0.785rem',
-                              gap: '4px',
-                              flex: 1
-                            }}
-                          >
-                            <CreditCard size={13} />
-                            <span>{o.payment_status === 'PAID' ? 'Paid ✓' : 'Pay ₹'}</span>
-                          </button>
+                        {hasPermission('orders', 'edit') && (
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            {/* IN-PLACE PAYMENT UPDATE BUTTON */}
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => handleOpenPayment(o)}
+                              title="Update payment in-place"
+                              style={{ 
+                                background: o.payment_status === 'PAID' ? '#ecfdf5' : '#eff6ff',
+                                color: o.payment_status === 'PAID' ? '#047857' : '#1d4ed8',
+                                border: o.payment_status === 'PAID' ? '1px solid #a7f3d0' : '1px solid #bfdbfe',
+                                padding: '5px 10px',
+                                fontSize: '0.785rem',
+                                gap: '4px',
+                                flex: 1
+                              }}
+                            >
+                              <CreditCard size={13} />
+                              <span>{o.payment_status === 'PAID' ? 'Paid ✓' : 'Pay ₹'}</span>
+                            </button>
 
-                          {/* Status change dropdown */}
-                          <select
-                            className="form-control"
-                            style={{ 
-                              width: 'auto', 
-                              padding: '4px 6px', 
-                              fontSize: '0.785rem',
-                              height: '29px',
-                              borderRadius: '6px',
-                              background: '#f8fafc',
-                              border: '1px solid #cbd5e1'
-                            }}
-                            value=""
-                            onChange={(e) => handleTriggerStatusChange(o, e.target.value)}
-                          >
-                            <option value="" disabled>Status...</option>
-                            <option value="BOOKED">Booked</option>
-                            <option value="IN_TRANSIT">In Transit</option>
-                            <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
-                            <option value="DELIVERED">Delivered</option>
-                            <option value="CANCELLED">Cancelled</option>
-                          </select>
-                        </div>
+                            {/* Status change dropdown */}
+                            <select
+                              className="form-control"
+                              style={{ 
+                                width: 'auto', 
+                                padding: '4px 6px', 
+                                fontSize: '0.785rem',
+                                height: '29px',
+                                borderRadius: '6px',
+                                background: '#f8fafc',
+                                border: '1px solid #cbd5e1'
+                              }}
+                              value=""
+                              onChange={(e) => handleTriggerStatusChange(o, e.target.value)}
+                            >
+                              <option value="" disabled>Status...</option>
+                              <option value="BOOKED">Booked</option>
+                              <option value="IN_TRANSIT">In Transit</option>
+                              <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
+                              <option value="DELIVERED">Delivered</option>
+                              <option value="CANCELLED">Cancelled</option>
+                            </select>
+                          </div>
+                        )}
 
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                           {/* EDIT ORDER BUTTON */}
-                          <button
-                            className="btn btn-outline btn-xs"
-                            onClick={() => handleOpenEditOrder(o)}
-                            title="Edit Order Details"
-                            style={{ flex: 1, padding: '4px 6px', fontSize: '0.75rem', gap: '3px', color: '#0284c7', borderColor: '#bae6fd', background: '#f0f9ff' }}
-                          >
-                            <Edit size={12} />
-                            <span>Edit</span>
-                          </button>
+                          {hasPermission('orders', 'edit') && (
+                            <button
+                              className="btn btn-outline btn-xs"
+                              onClick={() => handleOpenEditOrder(o)}
+                              title="Edit Order Details"
+                              style={{ flex: 1, padding: '4px 6px', fontSize: '0.75rem', gap: '3px', color: '#0284c7', borderColor: '#bae6fd', background: '#f0f9ff' }}
+                            >
+                              <Edit size={12} />
+                              <span>Edit</span>
+                            </button>
+                          )}
 
                           {/* Tracking Timeline Drawer */}
                           <button
@@ -1655,6 +1689,19 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                             <Printer size={12} />
                             <span>Slip 📱</span>
                           </button>
+
+                          {/* DELETE ORDER BUTTON */}
+                          {hasPermission('orders', 'delete') && (
+                            <button
+                              className="btn btn-outline btn-xs"
+                              onClick={() => setDeleteConfirmOrder(o)}
+                              title="Delete Order Permanently"
+                              style={{ padding: '4px 6px', fontSize: '0.75rem', gap: '3px', color: '#dc2626', borderColor: '#fecaca', background: '#fef2f2' }}
+                            >
+                              <Trash2 size={12} />
+                              <span>Delete</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -3131,6 +3178,46 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   ))
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Order Confirmation Modal */}
+      {deleteConfirmOrder && (
+        <div className="modal-overlay" onClick={() => setDeleteConfirmOrder(null)}>
+          <div
+            className="modal-box"
+            style={{ maxWidth: '420px', textAlign: 'center', padding: '28px 24px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Trash2 size={26} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
+              Delete Consignment Order?
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '20px', lineHeight: 1.5 }}>
+              Are you sure you want to permanently delete LR <strong>#{deleteConfirmOrder.lr_number}</strong> from <strong>{deleteConfirmOrder.sender_name}</strong> to <strong>{deleteConfirmOrder.receiver_name}</strong>?
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ flex: 1 }}
+                onClick={() => setDeleteConfirmOrder(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deletingOrder}
+                className="btn btn-danger"
+                style={{ flex: 1 }}
+                onClick={handleConfirmDeleteOrder}
+              >
+                {deletingOrder ? 'Deleting...' : 'Delete Order'}
+              </button>
             </div>
           </div>
         </div>

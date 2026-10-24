@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api/api';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { Filter, Printer, Download, RefreshCw, Calendar, DollarSign, Package } from 'lucide-react';
+import { Filter, Printer, Download, RefreshCw, Calendar, DollarSign, Package, ShieldAlert } from 'lucide-react';
 
 const ReportsView = () => {
+  const { hasPermission } = useAuth();
   const { showToast } = useToast();
   const [branches, setBranches] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -76,6 +78,10 @@ const ReportsView = () => {
 
   // Print Delivery Run Sheet / Orders Table
   const handlePrintRunSheet = () => {
+    if (!hasPermission('reports', 'edit')) {
+      showToast('You do not have permission to print or export reports.', 'error');
+      return;
+    }
     if (!reportData || !reportData.orders || reportData.orders.length === 0) {
       showToast('Please run the report and ensure there are orders to print on the run sheet.', 'error');
       return;
@@ -86,6 +92,10 @@ const ReportsView = () => {
 
   // Export CSV
   const handleExportCSV = () => {
+    if (!hasPermission('reports', 'edit')) {
+      showToast('You do not have permission to export reports.', 'error');
+      return;
+    }
     if (!reportData || !reportData.orders || reportData.orders.length === 0) {
       showToast('No report data available to export.', 'error');
       return;
@@ -117,6 +127,22 @@ const ReportsView = () => {
     link.click();
     document.body.removeChild(link);
   };
+
+  if (!hasPermission('reports', 'view')) {
+    return (
+      <div className="card" style={{ padding: '60px 20px', textAlign: 'center', maxWidth: '600px', margin: '40px auto' }}>
+        <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <ShieldAlert size={36} />
+        </div>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
+          Access Denied: Financial & Daily Reports
+        </h2>
+        <p style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: 1.6 }}>
+          You do not have permission to view daily reports and revenue analytics. Please contact an administrator to request access.
+        </p>
+      </div>
+    );
+  }
 
   const s = reportData?.summary || { totalBills: 0, totalPieces: 0, totalAmount: 0, totalPaid: 0, totalToPay: 0, totalCredit: 0 };
   const orders = reportData?.orders || [];

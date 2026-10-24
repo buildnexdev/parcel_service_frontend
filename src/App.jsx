@@ -10,11 +10,27 @@ import DriversView from './components/Portal/DriversView';
 import StaffView from './components/Portal/StaffView';
 import ReportsView from './components/Portal/ReportsView';
 import ProfileView from './components/Portal/ProfileView';
+import DailyExpensesView from './components/Portal/DailyExpensesView';
+import AttendanceView from './components/Portal/AttendanceView';
+import PermissionsView from './components/Portal/PermissionsView';
+import { ToastProvider, useToast } from './context/ToastContext';
 
-const VALID_PORTAL_TABS = ['dashboard', 'orders', 'vehicles', 'drivers', 'staff', 'reports', 'profile'];
+const VALID_PORTAL_TABS = [
+  'dashboard',
+  'orders',
+  'expenses',
+  'attendance',
+  'vehicles',
+  'drivers',
+  'reports',
+  'staff',
+  'permissions',
+  'profile'
+];
 
 function AppContent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, hasPermission } = useAuth();
+  const { showToast } = useToast();
 
   // Mode persistence: 'portal' or 'website'
   const [currentMode, setCurrentMode] = useState(() => {
@@ -44,6 +60,22 @@ function AppContent() {
   // Tab change updates state, localStorage, and browser URL hash
   const setPortalTab = (tab) => {
     if (VALID_PORTAL_TABS.includes(tab)) {
+      // Permission protection on tab switch
+      if (tab === 'permissions' && user?.role !== 'admin') {
+        showToast('Access restricted: Administrator privilege required for permissions.', 'error');
+        return;
+      }
+      if (['orders', 'expenses', 'attendance', 'reports', 'vehicles', 'drivers'].includes(tab)) {
+        if (!hasPermission(tab, 'view')) {
+          showToast(`Access denied: You do not have view permissions for ${tab}.`, 'error');
+          return;
+        }
+      }
+      if (tab === 'staff' && (user?.role !== 'admin' || !hasPermission('staff', 'view'))) {
+        showToast('Access denied: Only administrators can view staff directory.', 'error');
+        return;
+      }
+
       setPortalTabState(tab);
       localStorage.setItem('es_active_tab', tab);
       if (currentMode === 'portal') {
@@ -69,6 +101,10 @@ function AppContent() {
   };
 
   const handleOpenNewOrderModal = () => {
+    if (!hasPermission('orders', 'add')) {
+      showToast('You do not have permission to create new orders.', 'error');
+      return;
+    }
     setPortalTab('orders');
     setNewOrderTrigger(prev => prev + 1);
   };
@@ -143,6 +179,14 @@ function AppContent() {
             <OrdersView key={newOrderTrigger} defaultOpenNew={newOrderTrigger > 0} />
           )}
 
+          {portalTab === 'expenses' && (
+            <DailyExpensesView />
+          )}
+
+          {portalTab === 'attendance' && (
+            <AttendanceView />
+          )}
+
           {portalTab === 'vehicles' && (
             <VehiclesView />
           )}
@@ -159,6 +203,10 @@ function AppContent() {
             <ReportsView />
           )}
 
+          {portalTab === 'permissions' && (
+            <PermissionsView />
+          )}
+
           {portalTab === 'profile' && (
             <ProfileView />
           )}
@@ -167,8 +215,6 @@ function AppContent() {
     </div>
   );
 }
-
-import { ToastProvider } from './context/ToastContext';
 
 export default function App() {
   return (

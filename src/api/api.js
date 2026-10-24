@@ -97,7 +97,27 @@ export const api = {
 
   // Reports
   getDailyReport: (params = {}) => apiClient.get('/reports/daily', { params }),
-  getDashboardSummary: () => apiClient.get('/reports/summary')
+  getDashboardSummary: () => apiClient.get('/reports/summary'),
+
+  // Daily Expenses
+  getExpenses: (params = {}) => apiClient.get('/expenses', { params }),
+  getExpenseById: (id) => apiClient.get(`/expenses/${id}`),
+  createExpense: (data) => apiClient.post('/expenses', data),
+  updateExpense: (id, data) => apiClient.put(`/expenses/${id}`, data),
+  deleteExpense: (id) => apiClient.delete(`/expenses/${id}`),
+
+  // Staff Attendance
+  getAttendance: (params = {}) => apiClient.get('/attendance', { params }),
+  markAttendance: (data) => apiClient.post('/attendance/mark', data),
+  getMonthlyAttendanceSummary: (params = {}) => apiClient.get('/attendance/monthly-summary', { params }),
+  getUserMonthAttendanceRecords: (params = {}) => apiClient.get('/attendance/user-month-records', { params }),
+  deleteAttendance: (id) => apiClient.delete(`/attendance/${id}`),
+
+  // Role & Permissions Access
+  getMyPermissions: () => apiClient.get('/permissions/my-permissions'),
+  getAllStaffPermissions: () => apiClient.get('/permissions/users'),
+  getUserPermissions: (userId) => apiClient.get(`/permissions/user/${userId}`),
+  updateUserPermissions: (userId, permissions) => apiClient.put(`/permissions/user/${userId}`, { permissions })
 };
 
 export default api;
