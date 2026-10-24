@@ -216,7 +216,7 @@ const ReportsView = () => {
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Delivered Status</label>
+            <label className="form-label">Delivery Status</label>
             <select
               className="form-control"
               value={deliveryStatus}
@@ -224,6 +224,7 @@ const ReportsView = () => {
             >
               <option value="ALL">All Delivery Statuses</option>
               <option value="DELIVERED">Delivered</option>
+              <option value="UNDELIVERED">Undelivered</option>
               <option value="IN_TRANSIT">In Transit</option>
               <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
               <option value="BOOKED">Booked</option>
