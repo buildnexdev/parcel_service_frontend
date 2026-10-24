@@ -84,6 +84,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
   const [statusChangeDialog, setStatusChangeDialog] = useState(null);
   const [statusNote, setStatusNote] = useState('');
   const [markPaymentPaid, setMarkPaymentPaid] = useState(true);
+  const [deliveryPaymentChoice, setDeliveryPaymentChoice] = useState('CASH'); // 'CASH', 'GPAY', 'UNPAID'
   const [statusUpdating, setStatusUpdating] = useState(false);
 
   // Custom checkpoint inline state inside tracking drawer
@@ -126,6 +127,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     amount_paid: 0,
     remarks: ''
   });
+  const [showAdvancedPayment, setShowAdvancedPayment] = useState(false);
 
   // Edit Order Modal State
   const [isEditOrderOpen, setIsEditOrderOpen] = useState(false);
@@ -796,13 +798,15 @@ const OrdersView = ({ defaultOpenNew = false }) => {
   // Open In-Place Payment Modal
   const handleOpenPayment = (order) => {
     setSelectedOrder(order);
+    const isPaid = order.payment_status === 'PAID';
     setPaymentForm({
-      payment_status: order.payment_status === 'PAID' ? 'PAID' : 'PAID',
-      payment_mode: order.payment_mode,
+      payment_status: order.payment_status || (isPaid ? 'PAID' : 'UNPAID'),
+      payment_mode: order.payment_mode || (isPaid ? 'PAID' : 'TO_PAY'),
       payment_method: order.payment_method || 'CASH',
-      amount_paid: order.payment_status === 'PAID' ? order.total_amount : order.total_amount,
-      remarks: order.remarks || 'Payment collected'
+      amount_paid: isPaid ? order.total_amount : (order.amount_paid || 0),
+      remarks: order.remarks || (isPaid ? (order.payment_method === 'UPI' ? 'Paid via GPay (UPI)' : 'Paid in Cash') : 'Pending payment (To-Pay)')
     });
+    setShowAdvancedPayment(false);
     setIsPaymentModalOpen(true);
   };
 
@@ -815,15 +819,20 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       showToast(res.message || `Payment updated for Parcel LR #${selectedOrder.lr_number} successfully!`, 'success');
       setIsPaymentModalOpen(false);
       loadOrders();
+
+      const paymentDisplay = paymentForm.payment_status === 'UNPAID'
+        ? 'UNPAID (Pending)'
+        : (paymentForm.payment_method === 'UPI' ? 'PAID via GPay (UPI)' : 'PAID in Cash');
+
       setSuccessModalData({
         title: 'Parcel Payment Updated!',
         message: `Payment update confirmed for Parcel LR #${selectedOrder.lr_number}.`,
         details: {
           'Parcel LR Number': `#${selectedOrder.lr_number}`,
-          'Payment Status': paymentForm.payment_status,
+          'Payment Status': paymentDisplay,
           'Payment Mode': paymentForm.payment_mode,
           'Amount Paid': `₹${paymentForm.amount_paid}`,
-          'Payment Method': paymentForm.payment_method || 'CASH'
+          'Payment Method': paymentForm.payment_method === 'UPI' ? 'GPay / UPI' : (paymentForm.payment_method || 'CASH')
         }
       });
     } catch (err) {
@@ -836,6 +845,14 @@ const OrdersView = ({ defaultOpenNew = false }) => {
     if (!newStatus) return;
     setStatusChangeDialog({ order, newStatus });
     setStatusNote(`Parcel marked as ${newStatus}`);
+    
+    // Auto-select payment choice for delivery
+    if (order.payment_status === 'PAID') {
+      setDeliveryPaymentChoice(order.payment_method === 'UPI' ? 'GPAY' : 'CASH');
+    } else {
+      // Default to Cash collection for To-Pay consignment on delivery
+      setDeliveryPaymentChoice('CASH');
+    }
     setMarkPaymentPaid(order.payment_mode === 'TO_PAY');
   };
 
@@ -846,15 +863,27 @@ const OrdersView = ({ defaultOpenNew = false }) => {
 
     setStatusUpdating(true);
     try {
-      const res = await api.updateDeliveryStatus(order.id, {
+      const payload = {
         delivery_status: newStatus,
         location: newStatus === 'DELIVERED' ? order.to_station : order.from_station,
-        note: statusNote,
-        mark_payment_paid: newStatus === 'DELIVERED' && markPaymentPaid
-      });
+        note: statusNote
+      };
+
+      if (newStatus === 'DELIVERED') {
+        payload.payment_choice = deliveryPaymentChoice;
+        payload.mark_payment_paid = deliveryPaymentChoice !== 'UNPAID';
+        payload.payment_method = deliveryPaymentChoice === 'GPAY' ? 'UPI' : 'CASH';
+      }
+
+      const res = await api.updateDeliveryStatus(order.id, payload);
       showToast(res.message || `Parcel LR #${order.lr_number} status updated to ${newStatus}!`, 'success');
       setStatusChangeDialog(null);
       loadOrders();
+
+      const deliveryPaymentLabel = deliveryPaymentChoice === 'CASH'
+        ? 'Paid in Cash (PAID)'
+        : (deliveryPaymentChoice === 'GPAY' ? 'Paid via GPay / UPI (PAID)' : 'Unpaid (Pending To-Pay)');
+
       setSuccessModalData({
         title: `Parcel Status: ${newStatus}`,
         message: `Delivery status for Parcel LR #${order.lr_number} has been updated.`,
@@ -862,7 +891,10 @@ const OrdersView = ({ defaultOpenNew = false }) => {
           'Parcel LR Number': `#${order.lr_number}`,
           'New Delivery Status': newStatus,
           'Route': `${order.from_station} ➔ ${order.to_station}`,
-          'Checkpoint Note': statusNote || 'Status logged'
+          'Checkpoint Note': statusNote || 'Status logged',
+          ...(newStatus === 'DELIVERED' ? {
+            'Delivery Payment': deliveryPaymentLabel
+          } : {})
         }
       });
     } catch (err) {
@@ -1737,50 +1769,187 @@ const OrdersView = ({ defaultOpenNew = false }) => {
               </div>
 
               <form onSubmit={handleSavePayment}>
-                <div className="form-group">
-                  <label className="form-label">Payment Status *</label>
-                  <select
-                    className="form-control"
-                    value={paymentForm.payment_status}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, payment_status: e.target.value })}
-                  >
-                    <option value="PAID">PAID</option>
-                    <option value="UNPAID">UNPAID (Pending)</option>
-                    <option value="PARTIALLY_PAID">PARTIALLY PAID</option>
-                  </select>
+                {/* 3 QUICK PAYMENT OPTIONS: Cash / GPay / Unpaid */}
+                <div style={{ marginBottom: '18px' }}>
+                  <label className="form-label" style={{ marginBottom: '8px', fontWeight: 700, fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Payment Selection *</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>Select one option</span>
+                  </label>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                    {/* CASH */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentForm({
+                          ...paymentForm,
+                          payment_status: 'PAID',
+                          payment_mode: 'PAID',
+                          payment_method: 'CASH',
+                          amount_paid: selectedOrder.total_amount,
+                          remarks: 'Paid in Cash'
+                        });
+                      }}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '12px 8px',
+                        borderRadius: '10px',
+                        border: (paymentForm.payment_status === 'PAID' && paymentForm.payment_method === 'CASH')
+                          ? '2px solid #059669'
+                          : '1.5px solid #cbd5e1',
+                        background: (paymentForm.payment_status === 'PAID' && paymentForm.payment_method === 'CASH')
+                          ? '#ecfdf5'
+                          : '#ffffff',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: (paymentForm.payment_status === 'PAID' && paymentForm.payment_method === 'CASH')
+                          ? '0 4px 12px rgba(5, 150, 105, 0.15)'
+                          : '0 1px 2px rgba(0,0,0,0.04)'
+                      }}
+                    >
+                      <span style={{ fontSize: '1.5rem', marginBottom: '3px' }}>💵</span>
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem', color: (paymentForm.payment_status === 'PAID' && paymentForm.payment_method === 'CASH') ? '#047857' : '#1e293b' }}>
+                        Cash
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px', fontWeight: 600 }}>
+                        Paid in Cash
+                      </span>
+                      {(paymentForm.payment_status === 'PAID' && paymentForm.payment_method === 'CASH') && (
+                        <span style={{ marginTop: '5px', fontSize: '0.675rem', background: '#059669', color: '#fff', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                          ✓ Selected
+                        </span>
+                      )}
+                    </button>
+
+                    {/* GPAY */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentForm({
+                          ...paymentForm,
+                          payment_status: 'PAID',
+                          payment_mode: 'PAID',
+                          payment_method: 'UPI',
+                          amount_paid: selectedOrder.total_amount,
+                          remarks: 'Paid via GPay (UPI)'
+                        });
+                      }}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '12px 8px',
+                        borderRadius: '10px',
+                        border: (paymentForm.payment_status === 'PAID' && (paymentForm.payment_method === 'UPI' || paymentForm.payment_method === 'GPAY'))
+                          ? '2px solid #2563eb'
+                          : '1.5px solid #cbd5e1',
+                        background: (paymentForm.payment_status === 'PAID' && (paymentForm.payment_method === 'UPI' || paymentForm.payment_method === 'GPAY'))
+                          ? '#eff6ff'
+                          : '#ffffff',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: (paymentForm.payment_status === 'PAID' && (paymentForm.payment_method === 'UPI' || paymentForm.payment_method === 'GPAY'))
+                          ? '0 4px 12px rgba(37, 99, 235, 0.15)'
+                          : '0 1px 2px rgba(0,0,0,0.04)'
+                      }}
+                    >
+                      <span style={{ fontSize: '1.5rem', marginBottom: '3px' }}>📱</span>
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem', color: (paymentForm.payment_status === 'PAID' && (paymentForm.payment_method === 'UPI' || paymentForm.payment_method === 'GPAY')) ? '#1d4ed8' : '#1e293b' }}>
+                        GPay
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px', fontWeight: 600 }}>
+                        GPay / UPI Online
+                      </span>
+                      {(paymentForm.payment_status === 'PAID' && (paymentForm.payment_method === 'UPI' || paymentForm.payment_method === 'GPAY')) && (
+                        <span style={{ marginTop: '5px', fontSize: '0.675rem', background: '#2563eb', color: '#fff', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                          ✓ Selected
+                        </span>
+                      )}
+                    </button>
+
+                    {/* UNPAID */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentForm({
+                          ...paymentForm,
+                          payment_status: 'UNPAID',
+                          payment_mode: 'TO_PAY',
+                          payment_method: 'CASH',
+                          amount_paid: 0,
+                          remarks: 'Unpaid (To-Pay pending)'
+                        });
+                      }}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '12px 8px',
+                        borderRadius: '10px',
+                        border: (paymentForm.payment_status === 'UNPAID')
+                          ? '2px solid #d97706'
+                          : '1.5px solid #cbd5e1',
+                        background: (paymentForm.payment_status === 'UNPAID')
+                          ? '#fffbeb'
+                          : '#ffffff',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: (paymentForm.payment_status === 'UNPAID')
+                          ? '0 4px 12px rgba(217, 119, 6, 0.15)'
+                          : '0 1px 2px rgba(0,0,0,0.04)'
+                      }}
+                    >
+                      <span style={{ fontSize: '1.5rem', marginBottom: '3px' }}>⏳</span>
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem', color: (paymentForm.payment_status === 'UNPAID') ? '#b45309' : '#1e293b' }}>
+                        Unpaid
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px', fontWeight: 600 }}>
+                        To-Pay (Pending)
+                      </span>
+                      {(paymentForm.payment_status === 'UNPAID') && (
+                        <span style={{ marginTop: '5px', fontSize: '0.675rem', background: '#d97706', color: '#fff', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                          ✓ Selected
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="form-grid-2">
-                  <div className="form-group">
-                    <label className="form-label">Payment Mode</label>
-                    <select
-                      className="form-control"
-                      value={paymentForm.payment_mode}
-                      onChange={(e) => setPaymentForm({ ...paymentForm, payment_mode: e.target.value })}
-                    >
-                      <option value="TO_PAY">TO PAY</option>
-                      <option value="PAID">PAID</option>
-                      <option value="CREDIT">CREDIT</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Payment Method</label>
-                    <select
-                      className="form-control"
-                      value={paymentForm.payment_method}
-                      onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
-                    >
-                      <option value="CASH">CASH</option>
-                      <option value="UPI">UPI / GPay / PhonePe</option>
-                      <option value="BANK_TRANSFER">Bank Transfer</option>
-                      <option value="CREDIT">Credit</option>
-                    </select>
-                  </div>
+                {/* Status Indicator Message */}
+                <div style={{
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  fontSize: '0.825rem',
+                  fontWeight: 600,
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: paymentForm.payment_status === 'UNPAID' ? '#fffbeb' : (paymentForm.payment_method === 'UPI' ? '#eff6ff' : '#ecfdf5'),
+                  color: paymentForm.payment_status === 'UNPAID' ? '#92400e' : (paymentForm.payment_method === 'UPI' ? '#1e40af' : '#065f46'),
+                  border: `1px solid ${paymentForm.payment_status === 'UNPAID' ? '#fde68a' : (paymentForm.payment_method === 'UPI' ? '#bfdbfe' : '#a7f3d0')}`
+                }}>
+                  {paymentForm.payment_status === 'UNPAID' && (
+                    <span>⏳ Consignment will be marked as <strong>UNPAID (To-Pay)</strong>. ₹{selectedOrder.total_amount} to be collected on delivery.</span>
+                  )}
+                  {paymentForm.payment_status === 'PAID' && (paymentForm.payment_method === 'CASH' || !paymentForm.payment_method) && (
+                    <span>💵 Consignment will be marked as <strong>PAID in Cash</strong>. ₹{paymentForm.amount_paid} settled.</span>
+                  )}
+                  {paymentForm.payment_status === 'PAID' && (paymentForm.payment_method === 'UPI' || paymentForm.payment_method === 'GPAY') && (
+                    <span>📱 Consignment will be marked as <strong>PAID via GPay / UPI</strong>. ₹{paymentForm.amount_paid} settled.</span>
+                  )}
+                  {paymentForm.payment_status !== 'UNPAID' && paymentForm.payment_method !== 'CASH' && paymentForm.payment_method !== 'UPI' && paymentForm.payment_method !== 'GPAY' && (
+                    <span>💳 Payment: {paymentForm.payment_status} via {paymentForm.payment_method}</span>
+                  )}
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Amount Collected (₹)</label>
+                  <label className="form-label">Amount Collected (₹) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1796,13 +1965,84 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="e.g. Paid in cash on delivery"
+                    placeholder="e.g. Paid in cash on delivery, GPay Txn ID..."
                     value={paymentForm.remarks}
                     onChange={(e) => setPaymentForm({ ...paymentForm, remarks: e.target.value })}
                   />
                 </div>
 
-                <div className="flex justify-between items-center" style={{ marginTop: '20px' }}>
+                {/* Collapsible Advanced Dropdowns */}
+                <div style={{ marginTop: '12px', marginBottom: '14px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedPayment(!showAdvancedPayment)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#64748b',
+                      fontSize: '0.775rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: 0
+                    }}
+                  >
+                    <span>{showAdvancedPayment ? '▲ Hide Advanced Fields' : '▼ Show Advanced Fields (Mode, Status, Method)'}</span>
+                  </button>
+
+                  {showAdvancedPayment && (
+                    <div style={{ marginTop: '10px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <div className="form-group" style={{ marginBottom: '10px' }}>
+                        <label className="form-label" style={{ fontSize: '0.775rem' }}>Payment Status</label>
+                        <select
+                          className="form-control"
+                          style={{ height: '32px', fontSize: '0.8rem' }}
+                          value={paymentForm.payment_status}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, payment_status: e.target.value })}
+                        >
+                          <option value="PAID">PAID</option>
+                          <option value="UNPAID">UNPAID (Pending)</option>
+                          <option value="PARTIALLY_PAID">PARTIALLY PAID</option>
+                        </select>
+                      </div>
+
+                      <div className="form-grid-2">
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.775rem' }}>Payment Mode</label>
+                          <select
+                            className="form-control"
+                            style={{ height: '32px', fontSize: '0.8rem' }}
+                            value={paymentForm.payment_mode}
+                            onChange={(e) => setPaymentForm({ ...paymentForm, payment_mode: e.target.value })}
+                          >
+                            <option value="TO_PAY">TO PAY</option>
+                            <option value="PAID">PAID</option>
+                            <option value="CREDIT">CREDIT</option>
+                          </select>
+                        </div>
+
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.775rem' }}>Payment Method</label>
+                          <select
+                            className="form-control"
+                            style={{ height: '32px', fontSize: '0.8rem' }}
+                            value={paymentForm.payment_method}
+                            onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
+                          >
+                            <option value="CASH">CASH</option>
+                            <option value="UPI">UPI / GPay / PhonePe</option>
+                            <option value="BANK_TRANSFER">Bank Transfer</option>
+                            <option value="CREDIT">Credit</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-between items-center" style={{ marginTop: '18px' }}>
                   <button type="button" className="btn btn-outline" onClick={() => setIsPaymentModalOpen(false)}>
                     Cancel
                   </button>
@@ -1821,7 +2061,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       {/* ============================================================= */}
       {statusChangeDialog && (
         <div className="modal-overlay" onClick={() => setStatusChangeDialog(null)}>
-          <div className="modal-box" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-box" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Update Status: {statusChangeDialog.newStatus}</h3>
               <button className="modal-close" onClick={() => setStatusChangeDialog(null)}>
@@ -1846,16 +2086,111 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                   />
                 </div>
 
-                {statusChangeDialog.newStatus === 'DELIVERED' && statusChangeDialog.order.payment_mode === 'TO_PAY' && (
-                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '12px', borderRadius: '8px', marginBottom: 18 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
-                      <input
-                        type="checkbox"
-                        checked={markPaymentPaid}
-                        onChange={(e) => setMarkPaymentPaid(e.target.checked)}
-                      />
-                      <span>Mark TO-PAY as collected / PAID (₹{statusChangeDialog.order.total_amount})</span>
-                    </label>
+                {statusChangeDialog.newStatus === 'DELIVERED' && (
+                  <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', padding: '14px', borderRadius: '10px', marginBottom: 18 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a' }}>
+                        💳 Delivery Payment Settlement *
+                      </span>
+                      <span style={{ fontSize: '0.925rem', fontWeight: 800, color: '#047857' }}>
+                        ₹{Number(statusChangeDialog.order.total_amount).toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.775rem', color: '#64748b', marginBottom: '10px' }}>
+                      {statusChangeDialog.order.payment_status === 'PAID'
+                        ? `Consignment was prepaid (${statusChangeDialog.order.payment_method === 'UPI' ? 'GPay' : 'Cash'}). Confirm settlement:`
+                        : `Collect freight upon delivery. Select how customer paid:`}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                      {/* Cash Button */}
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryPaymentChoice('CASH')}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          padding: '10px 6px',
+                          borderRadius: '8px',
+                          border: deliveryPaymentChoice === 'CASH' ? '2px solid #059669' : '1.5px solid #cbd5e1',
+                          background: deliveryPaymentChoice === 'CASH' ? '#ecfdf5' : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          boxShadow: deliveryPaymentChoice === 'CASH' ? '0 2px 8px rgba(5,150,105,0.15)' : 'none'
+                        }}
+                      >
+                        <span style={{ fontSize: '1.3rem' }}>💵</span>
+                        <span style={{ fontWeight: 800, fontSize: '0.85rem', color: deliveryPaymentChoice === 'CASH' ? '#047857' : '#1e293b', marginTop: '2px' }}>
+                          Cash
+                        </span>
+                        <span style={{ fontSize: '0.675rem', color: '#64748b' }}>Paid Cash</span>
+                        {deliveryPaymentChoice === 'CASH' && (
+                          <span style={{ fontSize: '0.65rem', color: '#059669', fontWeight: 700, marginTop: '2px' }}>✓ Selected</span>
+                        )}
+                      </button>
+
+                      {/* GPay Button */}
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryPaymentChoice('GPAY')}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          padding: '10px 6px',
+                          borderRadius: '8px',
+                          border: deliveryPaymentChoice === 'GPAY' ? '2px solid #2563eb' : '1.5px solid #cbd5e1',
+                          background: deliveryPaymentChoice === 'GPAY' ? '#eff6ff' : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          boxShadow: deliveryPaymentChoice === 'GPAY' ? '0 2px 8px rgba(37,99,235,0.15)' : 'none'
+                        }}
+                      >
+                        <span style={{ fontSize: '1.3rem' }}>📱</span>
+                        <span style={{ fontWeight: 800, fontSize: '0.85rem', color: deliveryPaymentChoice === 'GPAY' ? '#1d4ed8' : '#1e293b', marginTop: '2px' }}>
+                          GPay
+                        </span>
+                        <span style={{ fontSize: '0.675rem', color: '#64748b' }}>GPay / UPI</span>
+                        {deliveryPaymentChoice === 'GPAY' && (
+                          <span style={{ fontSize: '0.65rem', color: '#2563eb', fontWeight: 700, marginTop: '2px' }}>✓ Selected</span>
+                        )}
+                      </button>
+
+                      {/* Unpaid Button */}
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryPaymentChoice('UNPAID')}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          padding: '10px 6px',
+                          borderRadius: '8px',
+                          border: deliveryPaymentChoice === 'UNPAID' ? '2px solid #d97706' : '1.5px solid #cbd5e1',
+                          background: deliveryPaymentChoice === 'UNPAID' ? '#fffbeb' : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          boxShadow: deliveryPaymentChoice === 'UNPAID' ? '0 2px 8px rgba(217,119,6,0.15)' : 'none'
+                        }}
+                      >
+                        <span style={{ fontSize: '1.3rem' }}>⏳</span>
+                        <span style={{ fontWeight: 800, fontSize: '0.85rem', color: deliveryPaymentChoice === 'UNPAID' ? '#b45309' : '#1e293b', marginTop: '2px' }}>
+                          Unpaid
+                        </span>
+                        <span style={{ fontSize: '0.675rem', color: '#64748b' }}>To-Pay (Pending)</span>
+                        {deliveryPaymentChoice === 'UNPAID' && (
+                          <span style={{ fontSize: '0.65rem', color: '#d97706', fontWeight: 700, marginTop: '2px' }}>✓ Selected</span>
+                        )}
+                      </button>
+                    </div>
+
+                    <div style={{ marginTop: '10px', padding: '6px 10px', borderRadius: '6px', fontSize: '0.75rem', textAlign: 'center', fontWeight: 600, background: deliveryPaymentChoice === 'UNPAID' ? '#fef3c7' : (deliveryPaymentChoice === 'GPAY' ? '#dbeafe' : '#d1fae5'), color: deliveryPaymentChoice === 'UNPAID' ? '#92400e' : (deliveryPaymentChoice === 'GPAY' ? '#1e40af' : '#065f46') }}>
+                      {deliveryPaymentChoice === 'CASH' && '💵 Will mark as PAID via Cash.'}
+                      {deliveryPaymentChoice === 'GPAY' && '📱 Will mark as PAID via GPay (UPI).'}
+                      {deliveryPaymentChoice === 'UNPAID' && '⏳ Will remain UNPAID / Pending.'}
+                    </div>
                   </div>
                 )}
 
