@@ -297,7 +297,7 @@ const WebsiteView = ({ onOpenLogin, onGoToPortal, isAuthenticated }) => {
                     <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Waybill / LR</span>
                     <h4 style={{ fontSize: '1.3rem', color: 'var(--primary-dark)' }}>#{trackResult.order.lr_number}</h4>
                   </div>
-                  <span className={`badge ${trackResult.order.delivery_status === 'DELIVERED' ? 'badge-delivered' : 'badge-in-transit'}`}>
+                  <span className={`badge ${trackResult.order.delivery_status === 'DELIVERED' ? 'badge-delivered' : (trackResult.order.delivery_status === 'UNDELIVERED' ? 'badge-undelivered' : (trackResult.order.delivery_status === 'CANCELLED' ? 'badge-cancelled' : 'badge-in-transit'))}`}>
                     {trackResult.order.delivery_status}
                   </span>
                 </div>

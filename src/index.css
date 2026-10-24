@@ -255,12 +255,12 @@ a {
   background-color: #3b82f6;
 }
 
-.badge-unpaid, .badge-cancelled, .badge-inactive {
+.badge-unpaid, .badge-cancelled, .badge-inactive, .badge-undelivered {
   background-color: #fef2f2;
   color: #b91c1c;
   border: 1px solid #fecaca;
 }
-.badge-unpaid .badge-dot, .badge-cancelled .badge-dot, .badge-inactive .badge-dot {
+.badge-unpaid .badge-dot, .badge-cancelled .badge-dot, .badge-inactive .badge-dot, .badge-undelivered .badge-dot {
   background-color: #ef4444;
 }
 

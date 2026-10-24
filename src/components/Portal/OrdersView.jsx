@@ -1296,7 +1296,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
         </div>
 
         <div style="text-align: center; border-top: 1px dashed #000; padding-top: 6px; font-size: 9px;">
-          <div>*** THANK YOU - HAVE A SAFE TRIP ***</div>
+          <div>*** THANK YOU - VISIT AGAIN ***</div>
           <div style="margin-top: 20px; border-top: 1px solid #000; padding-top: 3px; display: flex; justify-content: space-between; font-size: 8.5px;">
             <span>Customer Sign</span>
             <span>Driver Sign</span>
@@ -1320,6 +1320,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
       'IN_TRANSIT': 'badge-in-transit',
       'OUT_FOR_DELIVERY': 'badge-out-for-delivery',
       'DELIVERED': 'badge-delivered',
+      'UNDELIVERED': 'badge-undelivered',
       'CANCELLED': 'badge-cancelled'
     };
     return (
@@ -1371,6 +1372,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
               <option value="IN_TRANSIT">In Transit</option>
               <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
               <option value="DELIVERED">Delivered</option>
+              <option value="UNDELIVERED">Undelivered</option>
               <option value="CANCELLED">Cancelled</option>
             </select>
 
@@ -1638,6 +1640,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                               <option value="IN_TRANSIT">In Transit</option>
                               <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
                               <option value="DELIVERED">Delivered</option>
+                              <option value="UNDELIVERED">Undelivered</option>
                               <option value="CANCELLED">Cancelled</option>
                             </select>
                           </div>
@@ -2830,6 +2833,7 @@ const OrdersView = ({ defaultOpenNew = false }) => {
                       <option value="IN_TRANSIT">In Transit</option>
                       <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
                       <option value="DELIVERED">Delivered</option>
+                      <option value="UNDELIVERED">Undelivered</option>
                       <option value="CANCELLED">Cancelled</option>
                     </select>
                   </div>

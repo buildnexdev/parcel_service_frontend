@@ -395,7 +395,7 @@ const ReportsView = () => {
                     <td>{o.from_station} ➔ {o.to_station}</td>
                     <td>{o.pieces} Pcs</td>
                     <td>
-                      <span className={`badge ${o.delivery_status === 'DELIVERED' ? 'badge-delivered' : 'badge-in-transit'}`}>
+                      <span className={`badge ${o.delivery_status === 'DELIVERED' ? 'badge-delivered' : (o.delivery_status === 'UNDELIVERED' ? 'badge-undelivered' : (o.delivery_status === 'CANCELLED' ? 'badge-cancelled' : 'badge-in-transit'))}`}>
                         {o.delivery_status.replace(/_/g, ' ')}
                       </span>
                     </td>

@@ -29,6 +29,7 @@ const DashboardView = ({ onNavigate }) => {
       'IN_TRANSIT': 'badge-in-transit',
       'OUT_FOR_DELIVERY': 'badge-out-for-delivery',
       'DELIVERED': 'badge-delivered',
+      'UNDELIVERED': 'badge-undelivered',
       'CANCELLED': 'badge-cancelled'
     };
     return <span className={`badge ${map[status] || 'badge-booked'}`}>{status.replace(/_/g, ' ')}</span>;
