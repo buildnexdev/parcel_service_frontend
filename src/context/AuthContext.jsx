@@ -89,6 +89,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('es_token');
     localStorage.removeItem('es_user');
     localStorage.removeItem('es_permissions');
+    localStorage.removeItem('es_active_tab');
+    localStorage.setItem('es_current_mode', 'website');
     setToken(null);
     setUser(null);
     setPermissions({});

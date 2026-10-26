@@ -32,16 +32,16 @@ function AppContent() {
   const { isAuthenticated, user, hasPermission } = useAuth();
   const { showToast } = useToast();
 
-  // Mode persistence: 'portal' or 'website'
+  // Mode persistence:
+  // If NOT authenticated -> ALWAYS 'website'
+  // If authenticated -> 'portal' (or 'website' if explicitly toggled)
   const [currentMode, setCurrentMode] = useState(() => {
+    if (!isAuthenticated) return 'website';
     const savedMode = localStorage.getItem('es_current_mode');
-    if (savedMode === 'website' || savedMode === 'portal') {
-      return savedMode;
-    }
-    return isAuthenticated ? 'portal' : 'website';
+    return savedMode === 'website' ? 'website' : 'portal';
   });
 
-  // Tab persistence: reads from URL hash or localStorage so refresh stays on the same page
+  // Tab persistence: reads from URL hash or localStorage (latest checked page), defaults to 'dashboard'
   const [portalTab, setPortalTabState] = useState(() => {
     const hash = window.location.hash.replace(/^#/, '').toLowerCase();
     if (VALID_PORTAL_TABS.includes(hash)) {
@@ -89,15 +89,23 @@ function AppContent() {
     setCurrentMode(mode);
     localStorage.setItem('es_current_mode', mode);
     if (mode === 'portal') {
-      window.location.hash = portalTab;
+      const latest = localStorage.getItem('es_active_tab');
+      const target = (latest && VALID_PORTAL_TABS.includes(latest)) ? latest : portalTab;
+      setPortalTabState(target);
+      window.location.hash = target;
+    } else {
+      // Switching back to website: clean URL hash so website sections work smoothly
+      window.history.replaceState(null, '', window.location.pathname);
     }
   };
 
-  // Switch to portal on login
+  // Switch to portal on login: ALWAYS navigate directly to 'dashboard'
   const handleLoginSuccess = () => {
-    setMode('portal');
-    const saved = localStorage.getItem('es_active_tab');
-    setPortalTab(saved && VALID_PORTAL_TABS.includes(saved) ? saved : 'dashboard');
+    localStorage.setItem('es_current_mode', 'portal');
+    localStorage.setItem('es_active_tab', 'dashboard');
+    setCurrentMode('portal');
+    setPortalTabState('dashboard');
+    window.location.hash = 'dashboard';
   };
 
   const handleOpenNewOrderModal = () => {
@@ -109,7 +117,7 @@ function AppContent() {
     setNewOrderTrigger(prev => prev + 1);
   };
 
-  // Sync mode if authentication status changes
+  // Sync mode and tab when authentication status changes
   useEffect(() => {
     if (isAuthenticated) {
       const savedMode = localStorage.getItem('es_current_mode');
@@ -118,16 +126,27 @@ function AppContent() {
       } else {
         setCurrentMode('portal');
         localStorage.setItem('es_current_mode', 'portal');
+
+        // Check hash or restore latest checked page
         const hash = window.location.hash.replace(/^#/, '').toLowerCase();
         if (VALID_PORTAL_TABS.includes(hash)) {
           setPortalTabState(hash);
+          localStorage.setItem('es_active_tab', hash);
         } else {
-          window.location.hash = portalTab;
+          const latest = localStorage.getItem('es_active_tab');
+          const target = (latest && VALID_PORTAL_TABS.includes(latest)) ? latest : 'dashboard';
+          setPortalTabState(target);
+          window.location.hash = target;
         }
       }
     } else {
+      // Not logged in: website MUST always show first
       setCurrentMode('website');
       localStorage.setItem('es_current_mode', 'website');
+      const hash = window.location.hash.replace(/^#/, '').toLowerCase();
+      if (VALID_PORTAL_TABS.includes(hash)) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
     }
   }, [isAuthenticated]);
 
