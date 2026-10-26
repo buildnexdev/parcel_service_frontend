@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { X, Lock, User, AlertCircle, Sparkles } from 'lucide-react';
+import { X, Lock, User, AlertCircle } from 'lucide-react';
 
 const LoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
   const { login } = useAuth();
@@ -14,7 +14,7 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username || !password) {
-      setError('Please provide username and password');
+      setError('Please provide your mobile number/username and password');
       return;
     }
 
@@ -30,12 +30,6 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleFillDemo = () => {
-    setUsername('admin');
-    setPassword('admin123');
-    setError('');
   };
 
   return (
@@ -63,17 +57,18 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} autoComplete="off">
             <div className="form-group">
-              <label className="form-label">Username or Email</label>
+              <label className="form-label">Mobile Number or Username</label>
               <div style={{ position: 'relative' }}>
                 <input
                   type="text"
                   className="form-control"
                   style={{ paddingLeft: '38px' }}
-                  placeholder="e.g. admin"
+                  placeholder="e.g. 9360427527"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="off"
                   required
                 />
                 <User size={16} style={{ position: 'absolute', left: '12px', top: '13px', color: 'var(--text-muted)' }} />
@@ -90,28 +85,17 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
                   required
                 />
                 <Lock size={16} style={{ position: 'absolute', left: '12px', top: '13px', color: 'var(--text-muted)' }} />
               </div>
             </div>
 
-            <div style={{ marginBottom: '18px', display: 'flex', justifyContent: 'flex-start' }}>
-              <button
-                type="button"
-                className="btn btn-outline btn-sm"
-                onClick={handleFillDemo}
-                style={{ fontSize: '0.75rem', gap: '6px' }}
-              >
-                <Sparkles size={14} color="#f59e0b" />
-                <span>Fill Admin Demo (<code>admin</code> / <code>admin123</code>)</span>
-              </button>
-            </div>
-
             <button
               type="submit"
               className="btn btn-accent"
-              style={{ width: '100%', padding: '12px' }}
+              style={{ width: '100%', padding: '12px', marginTop: '10px' }}
               disabled={loading}
             >
               {loading ? 'Authenticating...' : 'Login to Staff Portal'}
