@@ -42,6 +42,9 @@ apiClient.interceptors.response.use(
       if (!error.config.url.includes('/auth/login') && !error.config.url.includes('/public/')) {
         localStorage.removeItem('es_token');
         localStorage.removeItem('es_user');
+        localStorage.removeItem('es_permissions');
+        localStorage.removeItem('es_active_tab');
+        localStorage.setItem('es_current_mode', 'website');
         window.dispatchEvent(new Event('auth_logout'));
       }
     }
